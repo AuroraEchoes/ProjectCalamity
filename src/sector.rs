@@ -53,16 +53,21 @@ impl Sector {
     pub fn add_unit(&mut self, u: Unit) {
         self.units.push(u);
     }
+
+    pub fn unit_at_tile(&self, pos: USizeVec2) -> Option<&Unit> {
+        return self.units.iter().filter(|u| u.pos == pos).nth(0);
+    }
 }
 
 pub struct Unit {
     pos: USizeVec2,
     color: Color,
+    movement: f32,
 }
 
 impl Unit {
-    pub fn new(pos: USizeVec2, color: Color) -> Unit {
-        return Unit { pos, color };
+    pub fn new(pos: USizeVec2, color: Color, movement: f32) -> Unit {
+        return Unit { pos, color, movement };
     }
 
     pub fn pos(&self) -> &USizeVec2 {
@@ -71,5 +76,19 @@ impl Unit {
 
     pub fn color(&self) -> &Color {
         return &self.color;
+    }
+}
+
+pub struct NavigationDistanceField {
+    size: USizeVec2,
+    distances: Vec<Option<f32>>
+}
+
+impl NavigationDistanceField {
+    fn new(sector: &Sector) -> Self {
+        let size = sector.size().clone();
+        let mut distances = Vec::with_capacity(size.x() * size.y());
+        distances.fill(None);
+        return Self { size, distances };
     }
 }

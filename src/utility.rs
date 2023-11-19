@@ -1,5 +1,7 @@
 use std::{cmp::Ordering, ops::{Div, Mul}};
 
+use raylib::math::Vector2;
+
 #[derive(Clone, Copy, Debug)]
 pub struct USizeVec2 {
     x: usize,
@@ -18,6 +20,24 @@ impl USizeVec2 {
     pub fn y(&self) -> usize {
         return self.y;
     }
+
+    pub fn add_x(&mut self, n: usize) {
+        self.x += n;
+    }
+
+    pub fn subtract_x(&mut self, n: usize) {
+        self.x -= n;
+    }
+
+    pub fn add_y(&mut self, n: usize) {
+        self.y += n;
+    }
+
+    pub fn subtract_y(&mut self, n: usize) {
+        self.y -= n;
+    }
+
+
 }
 
 impl PartialEq for USizeVec2 {
@@ -59,7 +79,7 @@ impl Mul<usize> for USizeVec2 {
 impl Div for USizeVec2 {
     type Output = USizeVec2;
 
-    fn div(mut self, rhs: Self) -> Self::Output {
+    fn div(self, rhs: Self) -> Self::Output {
         return USizeVec2::new(self.x / rhs.x, self.y / rhs.y);
     }
 }
@@ -71,5 +91,11 @@ impl Div<usize> for USizeVec2 {
         self.x /= rhs;
         self.y /= rhs;
         return self;
+    }
+}
+
+impl From<USizeVec2> for Vector2 {
+    fn from(value: USizeVec2) -> Self {
+        return Vector2 { x: value.x as f32, y: value.y as f32 };
     }
 }
