@@ -3,13 +3,13 @@ use std::{cmp::Ordering, ops::{Div, Mul}};
 use raylib::math::Vector2;
 
 #[derive(Clone, Copy, Debug)]
-pub struct USizeVec2 {
+pub struct GridPosVec {
     x: usize,
     y: usize,
 }
 
-impl USizeVec2 {
-    pub fn new(x: usize, y: usize) -> USizeVec2 {
+impl GridPosVec {
+    pub fn new(x: usize, y: usize) -> GridPosVec {
         return Self { x, y };
     }
 
@@ -40,13 +40,13 @@ impl USizeVec2 {
 
 }
 
-impl PartialEq for USizeVec2 {
+impl PartialEq for GridPosVec {
     fn eq(&self, other: &Self) -> bool {
         self.x == other.x && self.y == other.y
     }
 }
 
-impl PartialOrd for USizeVec2 {
+impl PartialOrd for GridPosVec {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self.x.cmp(&other.x), self.y.cmp(&other.y)) {
             (Ordering::Greater, Ordering::Greater) => Some(Ordering::Greater),
@@ -56,8 +56,8 @@ impl PartialOrd for USizeVec2 {
     }
 }
 
-impl Mul for USizeVec2 {
-    type Output = USizeVec2;
+impl Mul for GridPosVec {
+    type Output = GridPosVec;
 
     fn mul(mut self, rhs: Self) -> Self::Output {
         self.x *= rhs.x;
@@ -66,8 +66,8 @@ impl Mul for USizeVec2 {
     }
 }
 
-impl Mul<usize> for USizeVec2 {
-    type Output = USizeVec2;
+impl Mul<usize> for GridPosVec {
+    type Output = GridPosVec;
 
     fn mul(mut self, rhs: usize) -> Self::Output {
         self.x *= rhs;
@@ -76,16 +76,16 @@ impl Mul<usize> for USizeVec2 {
     }
 }
 
-impl Div for USizeVec2 {
-    type Output = USizeVec2;
+impl Div for GridPosVec {
+    type Output = GridPosVec;
 
     fn div(self, rhs: Self) -> Self::Output {
-        return USizeVec2::new(self.x / rhs.x, self.y / rhs.y);
+        return GridPosVec::new(self.x / rhs.x, self.y / rhs.y);
     }
 }
 
-impl Div<usize> for USizeVec2 {
-    type Output = USizeVec2;
+impl Div<usize> for GridPosVec {
+    type Output = GridPosVec;
 
     fn div(mut self, rhs: usize) -> Self::Output {
         self.x /= rhs;
@@ -94,8 +94,8 @@ impl Div<usize> for USizeVec2 {
     }
 }
 
-impl From<USizeVec2> for Vector2 {
-    fn from(value: USizeVec2) -> Self {
+impl From<GridPosVec> for Vector2 {
+    fn from(value: GridPosVec) -> Self {
         return Vector2 { x: value.x as f32, y: value.y as f32 };
     }
 }

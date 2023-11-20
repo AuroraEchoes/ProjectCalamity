@@ -3,11 +3,11 @@ use std::slice::Iter;
 use rand::Rng;
 use raylib::color::{Color, self};
 
-use crate::utility::USizeVec2;
+use crate::utility::GridPosVec;
 
 pub struct Sector {
     name: String,
-    size: USizeVec2,
+    size: GridPosVec,
     tiles: Vec<Tile>,
     units: Vec<Unit>
 }
@@ -21,7 +21,7 @@ impl Sector {
         return self.size.y();
     }
 
-    pub fn size(&self) -> &USizeVec2 {
+    pub fn size(&self) -> &GridPosVec {
         return &self.size;
     }
 
@@ -37,7 +37,7 @@ impl Sector {
         return self.tiles.get(y * self.width() + x);
     }
 
-    pub fn tile_pos(&self, pos: USizeVec2) -> Option<&Tile> {
+    pub fn tile_pos(&self, pos: GridPosVec) -> Option<&Tile> {
         return self.tile(pos.x(), pos.y());
     }
 
@@ -50,19 +50,19 @@ impl Sector {
         let mut tiles = Vec::with_capacity(width * height);
         for i in 0..(width * height) {
             tiles.push(Tile {
-                pos: USizeVec2::new(i % width, i / width),
+                pos: GridPosVec::new(i % width, i / width),
                 color: Color::color_from_hsv(rand.gen(), rand.gen(), rand.gen()),
                 speed_modifier: 1.,
             });
         }
-        return Self { name: name.to_string(), size: USizeVec2::new(width, height), tiles, units: Vec::new() };
+        return Self { name: name.to_string(), size: GridPosVec::new(width, height), tiles, units: Vec::new() };
     }
 
     pub fn add_unit(&mut self, u: Unit) {
         self.units.push(u);
     }
 
-    pub fn unit_at_tile(&self, pos: USizeVec2) -> Option<&Unit> {
+    pub fn unit_at_tile(&self, pos: GridPosVec) -> Option<&Unit> {
         return self.units.iter().filter(|u| u.pos == pos).nth(0);
     }
 
@@ -80,17 +80,17 @@ impl Sector {
 }
 
 pub struct Unit {
-    pos: USizeVec2,
+    pos: GridPosVec,
     color: Color,
     movement: f32,
 }
 
 impl Unit {
-    pub fn new(pos: USizeVec2, color: Color, movement: f32) -> Unit {
+    pub fn new(pos: GridPosVec, color: Color, movement: f32) -> Unit {
         return Unit { pos, color, movement };
     }
 
-    pub fn pos(&self) -> &USizeVec2 {
+    pub fn pos(&self) -> &GridPosVec {
         return &self.pos;
     }
 
@@ -100,13 +100,13 @@ impl Unit {
 }
 
 pub struct Tile {
-    pos: USizeVec2,
+    pos: GridPosVec,
     color: Color,
     speed_modifier: f32,
 }
 
 impl Tile {
-    pub fn new(pos: USizeVec2, color: Color, speed_modifier: f32) -> Self {
+    pub fn new(pos: GridPosVec, color: Color, speed_modifier: f32) -> Self {
         return Self { pos, color, speed_modifier }
     }
 
@@ -114,7 +114,7 @@ impl Tile {
         return self.speed_modifier;
     }
 
-    pub fn pos(&self) -> &USizeVec2 {
+    pub fn pos(&self) -> &GridPosVec {
         return &self.pos;
     }
 
@@ -124,7 +124,7 @@ impl Tile {
 }
 
 pub struct NavigationDistanceField {
-    size: USizeVec2,
+    size: GridPosVec,
     distances: Vec<Option<f32>>
 }
 

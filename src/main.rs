@@ -8,7 +8,7 @@ pub mod utility;
 use interaction::{handle_inputs, Selection};
 use raylib::{drawing::{RaylibDraw, RaylibDrawHandle}, color::Color, texture::Texture2D, math::Vector2};
 use sector::{Sector, Unit};
-use utility::USizeVec2;
+use utility::GridPosVec;
 
 fn main() {
     let (mut rl, thread) = raylib::init()
@@ -19,7 +19,7 @@ fn main() {
     let selection_texture = rl.load_texture(&thread, "assets/selector.png").unwrap();
 
     let mut sector = Sector::random("Test sector", 16, 16);
-    sector.add_unit(Unit::new(USizeVec2::new(5, 9), Color::GOLD, 2.));
+    sector.add_unit(Unit::new(GridPosVec::new(5, 9), Color::GOLD, 2.));
 
     let mut selection = Selection::new();
 

@@ -1,9 +1,9 @@
 use raylib::{RaylibHandle, ffi::{MouseButton, GamepadButton, KeyboardKey}};
 
-use crate::{utility::USizeVec2, sector::Sector};
+use crate::{utility::GridPosVec, sector::Sector};
 
 pub struct Selection {
-    tile: Option<USizeVec2>
+    tile: Option<GridPosVec>
 }
 
 impl Selection {
@@ -11,7 +11,7 @@ impl Selection {
         return Selection { tile: None }
     }
 
-    pub fn tile(&self) -> &Option<USizeVec2> {
+    pub fn tile(&self) -> &Option<GridPosVec> {
         return &self.tile;
     }
 }
@@ -20,7 +20,7 @@ pub fn handle_inputs(rl: &mut RaylibHandle, sector: &Sector, selection: &mut Sel
     let edge = usize::min(1200 / sector.width(), 720 / sector.height());
     // Mouse
     if rl.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
-        let mouse_pos = USizeVec2::new(rl.get_mouse_x() as usize, rl.get_mouse_y() as usize);
+        let mouse_pos = GridPosVec::new(rl.get_mouse_x() as usize, rl.get_mouse_y() as usize);
 
         // In bounds
         let size = *sector.size();
