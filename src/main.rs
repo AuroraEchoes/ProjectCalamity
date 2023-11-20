@@ -1,3 +1,6 @@
+// Prevailing note
+// Take screenshots of bugs for a "bug montage" to What Is Love - Haddaway (https://youtube.com/watch?v=SxQdbtjGEsc)
+
 pub mod interaction;
 pub mod sector;
 pub mod utility;
@@ -33,7 +36,7 @@ fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, sel_texture
     let edge = usize::min(1200 / sector.width(), 720 / sector.height());
     for x in 0..sector.width() {
         for y in 0..sector.height() {
-            d.draw_rectangle((x * edge) as i32, (y * edge) as i32, edge as i32, edge as i32, sector.tile(x, y).unwrap());
+            d.draw_rectangle((x * edge) as i32, (y * edge) as i32, edge as i32, edge as i32, sector.tile(x, y).unwrap().color());
         }
     }
 

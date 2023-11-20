@@ -8,7 +8,7 @@ use crate::utility::USizeVec2;
 pub struct Sector {
     name: String,
     size: USizeVec2,
-    tiles: Vec<Color>,
+    tiles: Vec<Tile>,
     units: Vec<Unit>
 }
 
@@ -33,11 +33,11 @@ impl Sector {
         return self.units.iter();
     }
     
-    pub fn tile<'a>(&'a self, x: usize, y: usize) -> Option<&'a Color> {
+    pub fn tile(&self, x: usize, y: usize) -> Option<&Tile> {
         return self.tiles.get(y * self.width() + x);
     }
 
-    pub fn tile_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Color> {
+    pub fn tile_mut(&mut self, x: usize, y: usize) -> Option<&mut Tile> {
         return self.tiles.get_mut(y * self.size.x() + x);
     }
 
@@ -45,7 +45,10 @@ impl Sector {
         let mut rand = rand::thread_rng();
         let mut tiles = Vec::with_capacity(width * height);
         for _ in 0..(width * height) {
-            tiles.push(Color::color_from_hsv(rand.gen(), rand.gen(), rand.gen()));
+            tiles.push(Tile {
+                color: Color::color_from_hsv(rand.gen(), rand.gen(), rand.gen()),
+                speed_modifier: 1.,
+            });
         }
         return Self { name: name.to_string(), size: USizeVec2::new(width, height), tiles, units: Vec::new() };
     }
@@ -79,6 +82,25 @@ impl Unit {
     }
 }
 
+pub struct Tile {
+    color: Color,
+    speed_modifier: f32,
+}
+
+impl Tile {
+    pub fn new(color: Color, speed_modifier: f32) -> Self {
+        return Self { color, speed_modifier }
+    }
+
+    pub fn speed_modifier(&self) -> f32 {
+        return self.speed_modifier;
+    }
+
+    pub fn color(&self) -> Color {
+        return self.color;
+    }
+}
+
 pub struct NavigationDistanceField {
     size: USizeVec2,
     distances: Vec<Option<f32>>
@@ -90,5 +112,9 @@ impl NavigationDistanceField {
         let mut distances = Vec::with_capacity(size.x() * size.y());
         distances.fill(None);
         return Self { size, distances };
+    }
+
+    fn fill(&mut self, unit: &Unit, sector: &Sector) {
+        
     }
 }
