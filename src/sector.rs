@@ -37,6 +37,10 @@ impl Sector {
         return self.tiles.get(y * self.width() + x);
     }
 
+    pub fn tile_pos(&self, pos: USizeVec2) -> Option<&Tile> {
+        return self.tile(pos.x(), pos.y());
+    }
+
     pub fn tile_mut(&mut self, x: usize, y: usize) -> Option<&mut Tile> {
         return self.tiles.get_mut(y * self.size.x() + x);
     }
@@ -44,8 +48,9 @@ impl Sector {
     pub fn random(name: &str, width: usize, height: usize) -> Self {
         let mut rand = rand::thread_rng();
         let mut tiles = Vec::with_capacity(width * height);
-        for _ in 0..(width * height) {
+        for i in 0..(width * height) {
             tiles.push(Tile {
+                pos: USizeVec2::new(i % width, i / width),
                 color: Color::color_from_hsv(rand.gen(), rand.gen(), rand.gen()),
                 speed_modifier: 1.,
             });
@@ -59,6 +64,18 @@ impl Sector {
 
     pub fn unit_at_tile(&self, pos: USizeVec2) -> Option<&Unit> {
         return self.units.iter().filter(|u| u.pos == pos).nth(0);
+    }
+
+    pub fn adjacent(&self, subject: &Tile) -> Vec<&Tile> {
+        let adjacent: [[i32; 2]; 8] = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];
+        let pos = subject.pos;
+        let mut adjacent_tiles = Vec::with_capacity(adjacent.len());
+        for off in adjacent {
+            if let Some(tile) = self.tile((pos.x() as i32 + off[0]) as usize, (pos.y() as i32 + off[1]) as usize) {
+                adjacent_tiles.push(tile);
+            }
+        }
+        return adjacent_tiles;
     }
 }
 
@@ -83,21 +100,26 @@ impl Unit {
 }
 
 pub struct Tile {
+    pos: USizeVec2,
     color: Color,
     speed_modifier: f32,
 }
 
 impl Tile {
-    pub fn new(color: Color, speed_modifier: f32) -> Self {
-        return Self { color, speed_modifier }
+    pub fn new(pos: USizeVec2, color: Color, speed_modifier: f32) -> Self {
+        return Self { pos, color, speed_modifier }
     }
 
     pub fn speed_modifier(&self) -> f32 {
         return self.speed_modifier;
     }
 
-    pub fn color(&self) -> Color {
-        return self.color;
+    pub fn pos(&self) -> &USizeVec2 {
+        return &self.pos;
+    }
+
+    pub fn color(&self) -> &Color {
+        return &self.color;
     }
 }
 
@@ -115,6 +137,13 @@ impl NavigationDistanceField {
     }
 
     fn fill(&mut self, unit: &Unit, sector: &Sector) {
+        self.distances[self.size.x() * (unit.pos().y() - 1) + unit.pos().x()] = Some(0.);
+        sector.tile_pos(*unit.pos());
         
+    }
+
+    fn calc_cost(&mut self, tile: &Tile, sector: &Sector) {
+        let adjacent = sector.adjacent(tile);
+
     }
 }
