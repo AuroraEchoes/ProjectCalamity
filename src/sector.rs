@@ -1,7 +1,8 @@
-use std::slice::Iter;
+use std::{slice::{Iter, IterMut}, cell::RefCell};
 
+use log::warn;
 use rand::Rng;
-use raylib::color::{Color, self};
+use raylib::color::Color;
 
 use crate::utility::GridPosVec;
 
@@ -32,17 +33,22 @@ impl Sector {
     pub fn units(&self) -> Iter<'_, Unit> {
         return self.units.iter();
     }
+
+    pub fn units_mut(&mut self) -> IterMut<'_, Unit> {
+        return self.units.iter_mut();
+    }
     
     pub fn tile(&self, x: usize, y: usize) -> Option<&Tile> {
         return self.tiles.get(y * self.width() + x);
     }
 
-    pub fn tile_pos(&self, pos: GridPosVec) -> Option<&Tile> {
-        return self.tile(pos.x(), pos.y());
+    pub fn tile_mut(&mut self, x: usize, y: usize) -> Option<&mut Tile> {
+        let w = self.width();
+        return self.tiles.get_mut(y * w + x);
     }
 
-    pub fn tile_mut(&mut self, x: usize, y: usize) -> Option<&mut Tile> {
-        return self.tiles.get_mut(y * self.size.x() + x);
+    pub fn tile_pos(&self, pos: GridPosVec) -> Option<&Tile> {
+        return self.tile(pos.x(), pos.y());
     }
 
     pub fn random(name: &str, width: usize, height: usize) -> Self {
@@ -66,6 +72,10 @@ impl Sector {
         return self.units.iter().filter(|u| u.pos == pos).nth(0);
     }
 
+    pub fn unit_at_tile_mut(&mut self, pos: GridPosVec) -> Option<&mut Unit> {
+        return self.units.iter_mut().filter(|u| u.pos == pos).nth(0);
+    }
+
     pub fn adjacent(&self, subject: &Tile) -> Vec<&Tile> {
         let adjacent: [[i32; 2]; 8] = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];
         let pos = subject.pos;
@@ -76,6 +86,84 @@ impl Sector {
             }
         }
         return adjacent_tiles;
+    }
+
+    pub fn generate_navs(&mut self) {
+        for x in 0..self.width() {
+            for y in 0..self.height() {
+                println!("x: {:?}, y: {:?}, nav: {:?}", x, y, self.populate(GridPosVec::new(x, y))); 
+            }
+        }
+    }
+
+    pub fn populate(&self, start: GridPosVec) -> Vec<f32> {
+        let edges: [[i32; 2]; 4] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+        let compute_queue = RefCell::new(vec![start]);
+        let computed = RefCell::new(Vec::<(f32, GridPosVec)>::with_capacity(&self.width() * &self.height()));
+        computed.borrow_mut().push((0., start));
+        while compute_queue.borrow().len() > 0 {
+            for parent in compute_queue.borrow().iter() {
+                // Calculate costs of children
+
+                if let Some((parent_cost, _)) = computed
+                    .borrow()
+                    .iter()
+                    .filter(|(_, p_pos)| p_pos == parent)
+                    .nth(0) 
+                {
+                    let children = edges
+                        .map(|edge| {
+                            let edge_x = parent.x() as i32 + edge[0];
+                            let edge_y = parent.y() as i32 + edge[1];
+                            if edge_x >= 0 && edge_x < self.width() as i32 && edge_y >= 0 && edge_y < self.height() as i32 {
+                                return self.tile(edge_x as usize, edge_y as usize);
+                            } else {
+                                return None;
+                            }
+                        });
+                    for child in children.iter() {
+                        if let Some(child) = child {
+                            // Add child to the queue to compute, *provided it doesn't already have a computed value*
+                            compute_queue.borrow_mut().push(child.pos().clone());
+                            // Only add to computed if no smaller values exist
+                            match computed
+                                .borrow_mut()
+                                .iter_mut()
+                                .filter(|(_, c_pos)| c_pos == child.pos())
+                                .nth(0) 
+                            {
+                                Some((prev_cost, _)) => {
+                                    let mut new_cost = parent_cost + 1. / child.speed_modifier;
+                                    if prev_cost > &mut new_cost {
+                                        *prev_cost = new_cost;
+                                    }
+                                },
+                                None => computed.borrow_mut().push((parent_cost + 1. / child.speed_modifier, child.pos().clone())),
+                            }
+                        }
+                        
+                    }
+                }
+    
+            }
+        }
+
+        let mut final_vec = Vec::with_capacity(self.width() * self.height());
+        for x in 0..self.width() {
+            for y in 0..self.height() {
+                if let Some((cost, _)) = computed
+                    .borrow()
+                    .iter()
+                    .filter(|(_, pos)| pos.x() == x && pos.y() == y)
+                    .nth(0) 
+                {
+                    final_vec.push(*cost);
+                } else {
+                    warn!("Could not find computed cost value for ({:?}, {:?}) at start ({:?}, {:?})", x, y, start.x(), start.y());
+                }
+            }
+        }
+        return final_vec;
     }
 }
 
@@ -96,6 +184,10 @@ impl Unit {
 
     pub fn color(&self) -> &Color {
         return &self.color;
+    }
+
+    pub fn movement(&self) -> &f32 {
+        return &self.movement;
     }
 }
 
@@ -120,30 +212,5 @@ impl Tile {
 
     pub fn color(&self) -> &Color {
         return &self.color;
-    }
-}
-
-pub struct NavigationDistanceField {
-    size: GridPosVec,
-    distances: Vec<Option<f32>>
-}
-
-impl NavigationDistanceField {
-    fn new(sector: &Sector) -> Self {
-        let size = sector.size().clone();
-        let mut distances = Vec::with_capacity(size.x() * size.y());
-        distances.fill(None);
-        return Self { size, distances };
-    }
-
-    fn fill(&mut self, unit: &Unit, sector: &Sector) {
-        self.distances[self.size.x() * (unit.pos().y() - 1) + unit.pos().x()] = Some(0.);
-        sector.tile_pos(*unit.pos());
-        
-    }
-
-    fn calc_cost(&mut self, tile: &Tile, sector: &Sector) {
-        let adjacent = sector.adjacent(tile);
-
     }
 }

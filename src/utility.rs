@@ -1,5 +1,6 @@
 use std::{cmp::Ordering, ops::{Div, Mul}};
 
+use log::warn;
 use raylib::math::Vector2;
 
 #[derive(Clone, Copy, Debug)]
@@ -26,7 +27,11 @@ impl GridPosVec {
     }
 
     pub fn subtract_x(&mut self, n: usize) {
-        self.x -= n;
+        if n >= self.x {
+            self.x -= n;
+        } else {
+            warn!("Attempted to underflow sector position");
+        }
     }
 
     pub fn add_y(&mut self, n: usize) {
@@ -34,7 +39,11 @@ impl GridPosVec {
     }
 
     pub fn subtract_y(&mut self, n: usize) {
-        self.y -= n;
+        if n >= self.y {
+            self.y -= n;
+        } else {
+            warn!("Attempted to underflow sector position");
+        }
     }
 
 
