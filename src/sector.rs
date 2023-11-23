@@ -98,18 +98,18 @@ impl Sector {
 
     pub fn populate(&self, start: GridPosVec) -> Vec<f32> {
         let edges: [[i32; 2]; 4] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-        let compute_queue = RefCell::new(vec![start]);
-        let computed = RefCell::new(Vec::<(f32, GridPosVec)>::with_capacity(&self.width() * &self.height()));
-        computed.borrow_mut().push((0., start));
-        while compute_queue.borrow().len() > 0 {
-            for parent in compute_queue.borrow().iter() {
-                // Calculate costs of children
-
+        let mut compute_queue = vec![start];
+        let mut computed = Vec::<(f32, GridPosVec)>::with_capacity(&self.width() * &self.height());
+        computed.push((0., start));
+        while compute_queue.len() > 0 {
+            let parents = compute_queue.clone();
+            compute_queue.clear();
+            for parent in parents.iter() {
                 if let Some((parent_cost, _)) = computed
-                    .borrow()
+                    .clone()
                     .iter()
                     .filter(|(_, p_pos)| p_pos == parent)
-                    .nth(0) 
+                    .nth(0)
                 {
                     let children = edges
                         .map(|edge| {
@@ -123,36 +123,30 @@ impl Sector {
                         });
                     for child in children.iter() {
                         if let Some(child) = child {
-                            // Add child to the queue to compute, *provided it doesn't already have a computed value*
-                            compute_queue.borrow_mut().push(child.pos().clone());
-                            // Only add to computed if no smaller values exist
+                            compute_queue.push(child.pos().clone());
                             match computed
-                                .borrow_mut()
                                 .iter_mut()
                                 .filter(|(_, c_pos)| c_pos == child.pos())
                                 .nth(0) 
                             {
                                 Some((prev_cost, _)) => {
-                                    let mut new_cost = parent_cost + 1. / child.speed_modifier;
-                                    if prev_cost > &mut new_cost {
+                                    let new_cost = parent_cost + 1. / child.speed_modifier;
+                                    if *prev_cost > new_cost {
                                         *prev_cost = new_cost;
                                     }
                                 },
-                                None => computed.borrow_mut().push((parent_cost + 1. / child.speed_modifier, child.pos().clone())),
+                                None => computed.push((parent_cost + 1. / child.speed_modifier, child.pos().clone())),
                             }
                         }
-                        
                     }
                 }
-    
             }
-        }
+        }    
 
         let mut final_vec = Vec::with_capacity(self.width() * self.height());
         for x in 0..self.width() {
             for y in 0..self.height() {
                 if let Some((cost, _)) = computed
-                    .borrow()
                     .iter()
                     .filter(|(_, pos)| pos.x() == x && pos.y() == y)
                     .nth(0) 
