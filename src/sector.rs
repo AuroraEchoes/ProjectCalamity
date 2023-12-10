@@ -1,19 +1,27 @@
-use std::{slice::{Iter, IterMut}, cell::RefCell};
+use std::slice::{Iter, IterMut};
 
-use log::warn;
-use rand::Rng;
+use anyhow::Context;
 use raylib::color::Color;
 
-use crate::utility::GridPosVec;
+use crate::{terrain::TileType, utility::GridPosVec};
 
 pub struct Sector {
     name: String,
     size: GridPosVec,
     tiles: Vec<Tile>,
-    units: Vec<Unit>
+    units: Vec<Unit>,
 }
 
 impl Sector {
+    pub fn new(name: String, size: GridPosVec, tiles: Vec<Tile>, units: Vec<Unit>) -> Self {
+        return Self {
+            name,
+            size,
+            tiles,
+            units,
+        };
+    }
+
     pub fn width(&self) -> usize {
         return self.size.x();
     }
@@ -37,7 +45,11 @@ impl Sector {
     pub fn units_mut(&mut self) -> IterMut<'_, Unit> {
         return self.units.iter_mut();
     }
-    
+
+    pub fn tiles(&self) -> Iter<'_, Tile> {
+        return self.tiles.iter();
+    }
+
     pub fn tile(&self, x: usize, y: usize) -> Option<&Tile> {
         return self.tiles.get(y * self.width() + x);
     }
@@ -51,19 +63,6 @@ impl Sector {
         return self.tile(pos.x(), pos.y());
     }
 
-    pub fn random(name: &str, width: usize, height: usize) -> Self {
-        let mut rand = rand::thread_rng();
-        let mut tiles = Vec::with_capacity(width * height);
-        for i in 0..(width * height) {
-            tiles.push(Tile {
-                pos: GridPosVec::new(i % width, i / width),
-                color: Color::color_from_hsv(rand.gen(), rand.gen(), rand.gen()),
-                speed_modifier: 1.,
-            });
-        }
-        return Self { name: name.to_string(), size: GridPosVec::new(width, height), tiles, units: Vec::new() };
-    }
-
     pub fn add_unit(&mut self, u: Unit) {
         self.units.push(u);
     }
@@ -75,101 +74,25 @@ impl Sector {
     pub fn unit_at_tile_mut(&mut self, pos: GridPosVec) -> Option<&mut Unit> {
         return self.units.iter_mut().filter(|u| u.pos == pos).nth(0);
     }
-
-    pub fn adjacent(&self, subject: &Tile) -> Vec<&Tile> {
-        let adjacent: [[i32; 2]; 8] = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];
-        let pos = subject.pos;
-        let mut adjacent_tiles = Vec::with_capacity(adjacent.len());
-        for off in adjacent {
-            if let Some(tile) = self.tile((pos.x() as i32 + off[0]) as usize, (pos.y() as i32 + off[1]) as usize) {
-                adjacent_tiles.push(tile);
-            }
-        }
-        return adjacent_tiles;
-    }
-
-    pub fn generate_navs(&mut self) {
-        for x in 0..self.width() {
-            for y in 0..self.height() {
-                println!("x: {:?}, y: {:?}, nav: {:?}", x, y, self.populate(GridPosVec::new(x, y))); 
-            }
-        }
-    }
-
-    pub fn populate(&self, start: GridPosVec) -> Vec<f32> {
-        let edges: [[i32; 2]; 4] = [[1, 0], [0, 1], [-1, 0], [0, -1]];
-        let mut compute_queue = vec![start];
-        let mut computed = Vec::<(f32, GridPosVec)>::with_capacity(&self.width() * &self.height());
-        computed.push((0., start));
-        while compute_queue.len() > 0 {
-            let parents = compute_queue.clone();
-            compute_queue.clear();
-            for parent in parents.iter() {
-                if let Some((parent_cost, _)) = computed
-                    .clone()
-                    .iter()
-                    .filter(|(_, p_pos)| p_pos == parent)
-                    .nth(0)
-                {
-                    let children = edges
-                        .map(|edge| {
-                            let edge_x = parent.x() as i32 + edge[0];
-                            let edge_y = parent.y() as i32 + edge[1];
-                            if edge_x >= 0 && edge_x < self.width() as i32 && edge_y >= 0 && edge_y < self.height() as i32 {
-                                return self.tile(edge_x as usize, edge_y as usize);
-                            } else {
-                                return None;
-                            }
-                        });
-                    for child in children.iter() {
-                        if let Some(child) = child {
-                            compute_queue.push(child.pos().clone());
-                            match computed
-                                .iter_mut()
-                                .filter(|(_, c_pos)| c_pos == child.pos())
-                                .nth(0) 
-                            {
-                                Some((prev_cost, _)) => {
-                                    let new_cost = parent_cost + 1. / child.speed_modifier;
-                                    if *prev_cost > new_cost {
-                                        *prev_cost = new_cost;
-                                    }
-                                },
-                                None => computed.push((parent_cost + 1. / child.speed_modifier, child.pos().clone())),
-                            }
-                        }
-                    }
-                }
-            }
-        }    
-
-        let mut final_vec = Vec::with_capacity(self.width() * self.height());
-        for x in 0..self.width() {
-            for y in 0..self.height() {
-                if let Some((cost, _)) = computed
-                    .iter()
-                    .filter(|(_, pos)| pos.x() == x && pos.y() == y)
-                    .nth(0) 
-                {
-                    final_vec.push(*cost);
-                } else {
-                    warn!("Could not find computed cost value for ({:?}, {:?}) at start ({:?}, {:?})", x, y, start.x(), start.y());
-                }
-            }
-        }
-        return final_vec;
-    }
 }
 
 pub struct Unit {
     pos: GridPosVec,
+    nav: Option<NavigationBitmask>,
     color: Color,
     movement: f32,
 }
 
 impl Unit {
-    pub fn new(pos: GridPosVec, color: Color, movement: f32) -> Unit {
-        return Unit { pos, color, movement };
+    pub fn new(pos: GridPosVec, color: Color, movement: f32, sector: &Sector) -> Result<Unit, ()> {
+        let mut unit = Unit {
+            pos,
+            nav: None,
+            color,
+            movement,
+        };
+        unit.nav = Some(NavigationBitmask::generate(&unit, sector)?);
+        return Ok(unit);
     }
 
     pub fn pos(&self) -> &GridPosVec {
@@ -183,17 +106,134 @@ impl Unit {
     pub fn movement(&self) -> &f32 {
         return &self.movement;
     }
+
+    pub fn can_reach_tile(&self, pos: &GridPosVec) -> Option<&bool> {
+        if let Some(nav) = &self.nav {
+            return nav.tile(pos);
+        }
+        return None;
+    }
+}
+
+pub struct NavigationBitmask {
+    movable_tiles: Vec<bool>,
+    size: GridPosVec,
+}
+
+impl NavigationBitmask {
+    fn generate(unit: &Unit, sector: &Sector) -> Result<Self, ()> {
+        let mut tile_costs = vec![None::<f32>; sector.width() * sector.height()];
+        tile_costs[unit.pos().index(sector.size())] = Some(0.);
+        // TODO Should this be min?
+        let max_radius = *[
+            unit.pos().x(),
+            sector.width() - unit.pos().x(),
+            unit.pos().y(),
+            sector.height() - unit.pos().y(),
+        ]
+        .iter()
+        .min()
+        .context("Could not get min radius")
+        .unwrap();
+        for r in 0..max_radius {
+            let x_low = unit.pos().x() - r;
+            let x_high = unit.pos().x() + r;
+            let y_low = unit.pos().y() - r;
+            let y_high = unit.pos().y() + r;
+            let mut tiles_to_replace = Vec::<(usize, f32)>::with_capacity(8);
+            tile_costs
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| {
+                    let pos = GridPosVec::from_index(*i, sector.size());
+                    return pos.x() == x_low
+                        || pos.x() == x_high
+                        || pos.y() == y_low
+                        || pos.y() == y_high;
+                })
+                .for_each(|(i, cost_opt)| {
+                    let pos = GridPosVec::from_index(i, sector.size());
+                    if let Some(cost) = cost_opt {
+                        let adj = NavigationBitmask::adjacent_mut(&tile_costs, &pos, sector);
+                        for (a, p) in adj {
+                            if let Some(a_tile) = sector.tile(p.x(), p.y()) {
+                                let cost_for_tile = cost + 1. / a_tile.speed_modifier;
+                                match a {
+                                    Some(prev_cost) => {
+                                        if prev_cost > &cost_for_tile {
+                                            tiles_to_replace
+                                                .push((p.index(sector.size()), cost_for_tile));
+                                        }
+                                    }
+                                    None => tiles_to_replace
+                                        .push((p.index(sector.size()), cost_for_tile)),
+                                }
+                            }
+                        }
+                    }
+                });
+            for (index, cost) in tiles_to_replace {
+                *tile_costs
+                    .get_mut(index)
+                    .context("Could not get tile cost")
+                    .unwrap() = Some(cost);
+            }
+        }
+
+        let movable_tiles = tile_costs
+            .iter()
+            .map(|x| match x {
+                Some(c) => c <= unit.movement(),
+                None => false,
+            })
+            .collect::<Vec<_>>();
+
+        return Ok(Self {
+            movable_tiles,
+            size: sector.size().clone(),
+        });
+    }
+
+    fn adjacent_mut<'a>(
+        tiles: &'a Vec<Option<f32>>,
+        pos: &GridPosVec,
+        sector: &Sector,
+    ) -> Vec<(&'a Option<f32>, GridPosVec)> {
+        let offsets = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+        let indexes = offsets
+            .iter()
+            .map(|x| GridPosVec::index(&pos.offset(x[0], x[1]), sector.size()))
+            .collect::<Vec<_>>();
+        return tiles
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| indexes.contains(i))
+            .map(|(i, x)| (x, GridPosVec::from_index(i, sector.size())))
+            .collect::<Vec<_>>();
+    }
+
+    fn size(&self) -> &GridPosVec {
+        return &self.size;
+    }
+
+    fn tile(&self, pos: &GridPosVec) -> Option<&bool> {
+        return self.movable_tiles.get(pos.index(self.size()));
+    }
 }
 
 pub struct Tile {
     pos: GridPosVec,
-    color: Color,
+    tile_type: TileType,
     speed_modifier: f32,
 }
 
 impl Tile {
-    pub fn new(pos: GridPosVec, color: Color, speed_modifier: f32) -> Self {
-        return Self { pos, color, speed_modifier }
+    pub fn new(pos: GridPosVec, tile_type: TileType, speed_modifier: f32) -> Self {
+        return Self {
+            pos,
+            tile_type,
+            speed_modifier,
+        };
     }
 
     pub fn speed_modifier(&self) -> f32 {
@@ -204,7 +244,7 @@ impl Tile {
         return &self.pos;
     }
 
-    pub fn color(&self) -> &Color {
-        return &self.color;
+    pub fn tile_type(&self) -> &TileType {
+        return &self.tile_type;
     }
 }

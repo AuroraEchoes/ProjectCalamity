@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, ops::{Div, Mul}};
+use std::{
+    cmp::Ordering,
+    ops::{Div, Mul},
+};
 
 use log::warn;
 use raylib::math::Vector2;
@@ -46,7 +49,34 @@ impl GridPosVec {
         }
     }
 
+    pub fn index(&self, size: &GridPosVec) -> usize {
+        return self.y() * size.x() + self.x();
+    }
 
+    pub fn from_index(index: usize, size: &GridPosVec) -> Self {
+        return Self::new(index % size.x(), index / size.x());
+    }
+
+    pub fn offset(&self, x: i32, y: i32) -> Self {
+        let mut new_pos = self.clone();
+        match x.signum() {
+            0 | 1 => new_pos.add_x(x as usize),
+            -1 => new_pos.subtract_x(x.abs() as usize),
+            _ => {}
+        };
+
+        match y.signum() {
+            0 | 1 => new_pos.add_y(y as usize),
+            -1 => new_pos.subtract_y(y.abs() as usize),
+            _ => {}
+        };
+
+        return new_pos;
+    }
+
+    pub fn in_bounds(&self, bounds: &GridPosVec) -> bool {
+        return self.x() < bounds.x() && self.y() < bounds.y();
+    }
 }
 
 impl PartialEq for GridPosVec {
@@ -105,6 +135,10 @@ impl Div<usize> for GridPosVec {
 
 impl From<GridPosVec> for Vector2 {
     fn from(value: GridPosVec) -> Self {
-        return Vector2 { x: value.x as f32, y: value.y as f32 };
+        return Vector2 {
+            x: value.x as f32,
+            y: value.y as f32,
+        };
     }
 }
+

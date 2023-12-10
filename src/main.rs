@@ -1,54 +1,79 @@
 // Prevailing note
 // Take screenshots of bugs for a "bug montage" to What Is Love - Haddaway (https://youtube.com/watch?v=SxQdbtjGEsc)
 
+pub mod assets;
 pub mod interaction;
 pub mod sector;
+pub mod terrain;
 pub mod utility;
 
+use assets::AssetStore;
 use interaction::{handle_inputs, Selection};
 use log::{info, warn, LevelFilter};
-use raylib::{drawing::{RaylibDraw, RaylibDrawHandle}, color::Color, texture::Texture2D, math::Vector2};
+use raylib::{
+    color::Color,
+    drawing::{RaylibDraw, RaylibDrawHandle},
+    math::Vector2,
+    texture::Texture2D,
+};
 use sector::{Sector, Unit};
-use simplelog::{TermLogger, Config, ColorChoice};
+use simplelog::{ColorChoice, Config, TermLogger};
+use terrain::TileType;
 use utility::GridPosVec;
+
+use crate::{assets::load_assets, terrain::generate_terrain};
 
 fn main() {
     TermLogger::init(
-        LevelFilter::Trace, 
-        Config::default(), 
-        simplelog::TerminalMode::Stdout, 
-        ColorChoice::Always
-    ).unwrap();
+        LevelFilter::Trace,
+        Config::default(),
+        simplelog::TerminalMode::Stdout,
+        ColorChoice::Always,
+    )
+    .unwrap();
 
     info!("Starting Raylib");
-    let (mut rl, thread) = raylib::init()
-        .size(1200, 720)
-        .title("WIP Game")
-        .build();
+    let (mut rl, thread) = raylib::init().size(1200, 720).title("WIP Game").build();
+    let asset_store = load_assets(&mut rl, &thread);
+    info!("Assets loaded");
 
-    let selection_texture = rl.load_texture(&thread, "assets/selector.png").unwrap();
+    let mut sector = generate_terrain("Hello world sector".to_string(), GridPosVec::new(16, 16));
+    let mut unit = Unit::new(GridPosVec::new(3, 6), Color::GOLD, 4., &sector).unwrap();
+    sector.add_unit(unit);
 
-    let mut sector = Sector::random("Test sector", 16, 16);
-    sector.generate_navs();
-    sector.add_unit(Unit::new(GridPosVec::new(5, 9), Color::GOLD, 2.));
+    info!("Sector created and unit added");
 
     let mut selection = Selection::new();
 
     while !rl.window_should_close() {
         let d = rl.begin_drawing(&thread);
-        
         // Render tiles
-        render(d, &sector, &selection, &selection_texture);
+        render(d, &sector, &selection, &asset_store);
         handle_inputs(&mut rl, &sector, &mut selection);
     }
 }
 
-fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, sel_texture: &Texture2D) {
+fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, asset_store: &AssetStore) {
     let edge = usize::min(1200 / sector.width(), 720 / sector.height());
-    for x in 0..sector.width() {
-        for y in 0..sector.height() {
-            d.draw_rectangle((x * edge) as i32, (y * edge) as i32, edge as i32, edge as i32, sector.tile(x, y).unwrap().color());
+    let ground_texture = asset_store.get("tile-ground").unwrap();
+    let water_texture = asset_store.get("tile-water").unwrap();
+    for tile in sector.tiles() {
+        let mut texture;
+        if tile.tile_type() == &TileType::Ground {
+            texture = ground_texture.texture();
+        } else {
+            texture = water_texture.texture();
         }
+        d.draw_texture_ex(
+            texture,
+            Vector2::new(
+                (tile.pos().x() * edge) as f32,
+                (tile.pos().y() * edge) as f32,
+            ),
+            0.,
+            45. / 16.,
+            Color::WHITE,
+        )
     }
 
     for u in sector.units() {
@@ -59,14 +84,19 @@ fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, sel_texture
 
     // Render selection
     if let Some(pos) = sel.tile() {
+        let sel_texture = asset_store.get("selector-icon").unwrap().texture();
         let pos = *pos;
-        d.draw_texture_ex(sel_texture, Vector2::new((pos.x() * edge) as f32, (pos.y() * edge) as f32), 0., 3., Color::WHITE);
+        d.draw_texture_ex(
+            sel_texture,
+            Vector2::new((pos.x() * edge) as f32, (pos.y() * edge) as f32),
+            0.,
+            3.,
+            Color::WHITE,
+        );
         if let Some(unit) = sector.unit_at_tile(pos) {
             // if !unit.has_nav() {
             //     warn!("Attempting to render unit with no nav");
             // }
-
-
 
             // for x in 0..sector.width() {
             //     for y in 0..sector.height() {
@@ -74,10 +104,10 @@ fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, sel_texture
             //             if let Some(dist) = nav.tile(x, y) {
             //                 if dist <= unit.movement() {
             //                     d.draw_rectangle(
-            //                         (x * edge) as i32, 
-            //                         (y * edge) as i32, 
-            //                         edge as i32, 
-            //                         edge as i32, 
+            //                         (x * edge) as i32,
+            //                         (y * edge) as i32,
+            //                         edge as i32,
+            //                         edge as i32,
             //                         Color::new(0, 0, 0, 128)
             //                     );
             //                 }
