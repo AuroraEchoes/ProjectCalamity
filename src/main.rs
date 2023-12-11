@@ -7,7 +7,7 @@ pub mod sector;
 pub mod terrain;
 pub mod utility;
 
-use assets::AssetStore;
+use assets::TextureStore;
 use interaction::{handle_inputs, Selection};
 use log::{info, warn, LevelFilter};
 use raylib::{
@@ -53,27 +53,21 @@ fn main() {
     }
 }
 
-fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, asset_store: &AssetStore) {
+fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, asset_store: &TextureStore) {
     let edge = usize::min(1200 / sector.width(), 720 / sector.height());
-    let ground_texture = asset_store.get("tile-ground").unwrap();
-    let water_texture = asset_store.get("tile-water").unwrap();
     for tile in sector.tiles() {
-        let mut texture;
-        if tile.tile_type() == &TileType::Ground {
-            texture = ground_texture.texture();
-        } else {
-            texture = water_texture.texture();
-        }
-        d.draw_texture_ex(
-            texture,
-            Vector2::new(
-                (tile.pos().x() * edge) as f32,
-                (tile.pos().y() * edge) as f32,
-            ),
-            0.,
-            45. / 16.,
-            Color::WHITE,
-        )
+        let tag = match tile.tile_type() {
+            TileType::GrassNone => "grass-none",
+            TileType::GrassVar1 => "grass-var1",
+            TileType::GrassVar2 => "grass-var2",
+            TileType::PathBottom => "path-bottom",
+            TileType::PathBottomRight => "path-bottom,right",
+            TileType::PathBottomLeftRight => "path-bottom,left,right",
+            TileType::PathTop => "path-top",
+        };
+        let origin = GridPosVec::new(edge * tile.pos().x(), edge * tile.pos().y());
+        let size = GridPosVec::new(edge, edge);
+        asset_store.render(tag.to_string(), origin, size, &mut d);
     }
 
     for u in sector.units() {
@@ -83,40 +77,40 @@ fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, asset_store
     }
 
     // Render selection
-    if let Some(pos) = sel.tile() {
-        let sel_texture = asset_store.get("selector-icon").unwrap().texture();
-        let pos = *pos;
-        d.draw_texture_ex(
-            sel_texture,
-            Vector2::new((pos.x() * edge) as f32, (pos.y() * edge) as f32),
-            0.,
-            3.,
-            Color::WHITE,
-        );
-        if let Some(unit) = sector.unit_at_tile(pos) {
-            // if !unit.has_nav() {
-            //     warn!("Attempting to render unit with no nav");
-            // }
+    // if let Some(pos) = sel.tile() {
+    //     let sel_texture = asset_store.get("selector-icon").unwrap().texture();
+    //     let pos = *pos;
+    //     d.draw_texture_ex(
+    //         sel_texture,
+    //         Vector2::new((pos.x() * edge) as f32, (pos.y() * edge) as f32),
+    //         0.,
+    //         3.,
+    //         Color::WHITE,
+    //     );
+    //     if let Some(unit) = sector.unit_at_tile(pos) {
+    //         // if !unit.has_nav() {
+    //         //     warn!("Attempting to render unit with no nav");
+    //         // }
 
-            // for x in 0..sector.width() {
-            //     for y in 0..sector.height() {
-            //         if let Some(nav) = unit.get_nav() {
-            //             if let Some(dist) = nav.tile(x, y) {
-            //                 if dist <= unit.movement() {
-            //                     d.draw_rectangle(
-            //                         (x * edge) as i32,
-            //                         (y * edge) as i32,
-            //                         edge as i32,
-            //                         edge as i32,
-            //                         Color::new(0, 0, 0, 128)
-            //                     );
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-        }
-    }
+    //         // for x in 0..sector.width() {
+    //         //     for y in 0..sector.height() {
+    //         //         if let Some(nav) = unit.get_nav() {
+    //         //             if let Some(dist) = nav.tile(x, y) {
+    //         //                 if dist <= unit.movement() {
+    //         //                     d.draw_rectangle(
+    //         //                         (x * edge) as i32,
+    //         //                         (y * edge) as i32,
+    //         //                         edge as i32,
+    //         //                         edge as i32,
+    //         //                         Color::new(0, 0, 0, 128)
+    //         //                     );
+    //         //                 }
+    //         //             }
+    //         //         }
+    //         //     }
+    //         // }
+    //     }
+    // }
 
     d.clear_background(Color::WHITE);
     d.draw_text(&sector.name(), 12, 12, 20, Color::BLUE);
