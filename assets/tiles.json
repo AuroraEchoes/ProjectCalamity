@@ -1,0 +1,58 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass",
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "down": "grass",
+  "left": "grass",
+    "right": "grass",
+    "up": "grass",
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass",
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "down": "path",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass",
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "down": "path",
+    "left": "grass",
+    "right": "path",
+    "up": "grass",
+  },
+  {
+    "x": 5,
+    "y": 0,
+    "down": "path",
+    "left": "path",
+    "right": "path",
+    "up": "grass",
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "path"
+  }
+]
