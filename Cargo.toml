@@ -12,3 +12,4 @@ log = "0.4.20"
 rand = "0.8.5"
 raylib = "3.7.0"
 simplelog = "0.12.1"
+juno = { git = "https://github.com/auroraechoes/juno" }

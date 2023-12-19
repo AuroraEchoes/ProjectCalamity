@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use juno::{
+    ivec,
+    vector::{IVec2, Vector},
+};
 use log::warn;
 use raylib::{
     color::Color,
@@ -8,8 +12,6 @@ use raylib::{
     texture::Texture2D,
     RaylibHandle, RaylibThread,
 };
-
-use crate::utility::GridPosVec;
 
 pub fn load_assets(mut rl: &mut RaylibHandle, thread: &RaylibThread) -> TextureStore {
     let mut textures = TextureStore::new();
@@ -22,44 +24,44 @@ pub fn load_assets(mut rl: &mut RaylibHandle, thread: &RaylibThread) -> TextureS
     textures.add_sprite(
         "grass-none",
         "punyworld-tileset",
-        GridPosVec::new(0, 0),
-        GridPosVec::new(16, 16),
+        ivec!(0, 0),
+        ivec!(16, 16),
     );
     textures.add_sprite(
         "grass-var1",
         "punyworld-tileset",
-        GridPosVec::new(16, 0),
-        GridPosVec::new(16, 16),
+        ivec!(16, 0),
+        ivec!(16, 16),
     );
     textures.add_sprite(
         "grass-var2",
         "punyworld-tileset",
-        GridPosVec::new(32, 0),
-        GridPosVec::new(16, 16),
+        ivec!(32, 0),
+        ivec!(16, 16),
     );
     textures.add_sprite(
         "path-bottom",
         "punyworld-tileset",
-        GridPosVec::new(48, 0),
-        GridPosVec::new(16, 16),
+        ivec!(48, 0),
+        ivec!(16, 16),
     );
     textures.add_sprite(
         "path-bottom,right",
         "punyworld-tileset",
-        GridPosVec::new(64, 0),
-        GridPosVec::new(16, 16),
+        ivec!(64, 0),
+        ivec!(16, 16),
     );
     textures.add_sprite(
         "path-bottom,left,right",
         "punyworld-tileset",
-        GridPosVec::new(96, 0),
-        GridPosVec::new(16, 16),
+        ivec!(96, 0),
+        ivec!(16, 16),
     );
     textures.add_sprite(
         "path-top",
         "punyworld-tileset",
-        GridPosVec::new(48, 32),
-        GridPosVec::new(16, 16),
+        ivec!(48, 32),
+        ivec!(16, 16),
     );
 
     return textures;
@@ -89,35 +91,29 @@ impl TextureStore {
         self.textures.insert(name.to_string(), texture);
     }
 
-    fn add_sprite(&mut self, name: &str, parent: &str, origin: GridPosVec, size: GridPosVec) {
+    fn add_sprite(&mut self, name: &str, parent: &str, origin: IVec2, size: IVec2) {
         self.tiles.insert(
             name.to_string(),
             AtlasTile::new(parent.to_string(), origin, size),
         );
     }
 
-    pub fn render(
-        &self,
-        tag: String,
-        origin: GridPosVec,
-        size: GridPosVec,
-        draw: &mut RaylibDrawHandle,
-    ) {
+    pub fn render(&self, tag: String, origin: IVec2, size: IVec2, draw: &mut RaylibDrawHandle) {
         let sprite = self.tiles.get(&tag).unwrap();
         let texture = self.textures.get(&sprite.parent).unwrap();
         draw.draw_texture_pro(
             texture,
             Rectangle::new(
-                sprite.origin.x() as f32,
-                sprite.origin.y() as f32,
-                sprite.size.x() as f32,
-                sprite.size.y() as f32,
+                *sprite.origin.x() as f32,
+                *sprite.origin.y() as f32,
+                *sprite.size.x() as f32,
+                *sprite.size.y() as f32,
             ),
             Rectangle::new(
-                origin.x() as f32,
-                origin.y() as f32,
-                size.x() as f32,
-                size.y() as f32,
+                *origin.x() as f32,
+                *origin.y() as f32,
+                *size.x() as f32,
+                *size.y() as f32,
             ),
             Vector2::new(0., 0.),
             0.,
@@ -130,13 +126,13 @@ pub struct AtlasTile {
     // Name of parent texture
     parent: String,
     // Top left hand corner pos on parent texture
-    origin: GridPosVec,
+    origin: IVec2,
     // Texture size
-    size: GridPosVec,
+    size: IVec2,
 }
 
 impl AtlasTile {
-    pub fn new(parent: String, origin: GridPosVec, size: GridPosVec) -> Self {
+    pub fn new(parent: String, origin: IVec2, size: IVec2) -> Self {
         return Self {
             parent,
             origin,

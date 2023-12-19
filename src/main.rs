@@ -5,21 +5,21 @@ pub mod assets;
 pub mod interaction;
 pub mod sector;
 pub mod terrain;
-pub mod utility;
 
 use assets::TextureStore;
 use interaction::{handle_inputs, Selection};
-use log::{info, warn, LevelFilter};
+use juno::{
+    ivec,
+    vector::{IVec2, Vector},
+};
+use log::{info, LevelFilter};
 use raylib::{
     color::Color,
     drawing::{RaylibDraw, RaylibDrawHandle},
-    math::Vector2,
-    texture::Texture2D,
 };
 use sector::{Sector, Unit};
 use simplelog::{ColorChoice, Config, TermLogger};
 use terrain::TileType;
-use utility::GridPosVec;
 
 use crate::{assets::load_assets, terrain::generate_terrain};
 
@@ -37,8 +37,8 @@ fn main() {
     let asset_store = load_assets(&mut rl, &thread);
     info!("Assets loaded");
 
-    let mut sector = generate_terrain("Hello world sector".to_string(), GridPosVec::new(16, 16));
-    let mut unit = Unit::new(GridPosVec::new(3, 6), Color::GOLD, 4., &sector).unwrap();
+    let mut sector = generate_terrain("Hello world sector".to_string(), ivec!(16, 16));
+    let mut unit = Unit::new(ivec!(3, 6), Color::GOLD, 4., &sector).unwrap();
     sector.add_unit(unit);
 
     info!("Sector created and unit added");
@@ -54,9 +54,9 @@ fn main() {
 }
 
 fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, asset_store: &TextureStore) {
-    let edge = usize::min(1200 / sector.width(), 720 / sector.height());
+    let edge = i32::min(1200 / sector.width(), 720 / sector.height());
     for tile in sector.tiles() {
-        let tag = match tile.tile_type() {
+        let tag = match tile.contents().tile_type() {
             TileType::GrassNone => "grass-none",
             TileType::GrassVar1 => "grass-var1",
             TileType::GrassVar2 => "grass-var2",
@@ -65,8 +65,8 @@ fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, asset_store
             TileType::PathBottomLeftRight => "path-bottom,left,right",
             TileType::PathTop => "path-top",
         };
-        let origin = GridPosVec::new(edge * tile.pos().x(), edge * tile.pos().y());
-        let size = GridPosVec::new(edge, edge);
+        let origin = IVec2::new(edge * tile.pos().x(), edge * tile.pos().y());
+        let size = IVec2::new(edge, edge);
         asset_store.render(tag.to_string(), origin, size, &mut d);
     }
 

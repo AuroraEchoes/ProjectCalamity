@@ -1,85 +1,45 @@
-use raylib::{RaylibHandle, ffi::{MouseButton, GamepadButton, KeyboardKey}};
+use juno::vector::{IVec2, Vector};
+use raylib::{
+    ffi::{GamepadButton, KeyboardKey, MouseButton},
+    RaylibHandle,
+};
 
-use crate::{utility::GridPosVec, sector::Sector};
+use crate::sector::Sector;
 
 pub struct Selection {
-    tile: Option<GridPosVec>
+    tile: Option<IVec2>,
 }
 
 impl Selection {
     pub fn new() -> Self {
-        return Selection { tile: None }
+        return Selection { tile: None };
     }
 
-    pub fn tile(&self) -> &Option<GridPosVec> {
+    pub fn tile(&self) -> &Option<IVec2> {
         return &self.tile;
     }
 }
 
 pub fn handle_inputs(rl: &mut RaylibHandle, sector: &Sector, selection: &mut Selection) {
-    let edge = usize::min(1200 / sector.width(), 720 / sector.height());
+    let edge = i32::min(1200 / sector.width(), 720 / sector.height());
     // Mouse
     if rl.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
-        let mouse_pos = GridPosVec::new(rl.get_mouse_x() as usize, rl.get_mouse_y() as usize);
+        let mouse_pos = IVec2::new(rl.get_mouse_x(), rl.get_mouse_y());
 
         // In bounds
-        let size = *sector.size();
-        if mouse_pos < (size * edge) {
+        let size = sector.size().clone();
+        if mouse_pos.x() < &(size.x() * edge) && mouse_pos.y() < &(size.y() * edge) {
             let pos = mouse_pos / edge;
-            selection.tile = match selection.tile {
-                Some(prev_pos) => if prev_pos != pos { Some(pos) } else { None },
+            selection.tile = match &selection.tile {
+                Some(prev_pos) => {
+                    if prev_pos != &pos {
+                        Some(pos)
+                    } else {
+                        None
+                    }
+                }
                 None => Some(pos),
             }
         }
-    }
-
-    // Keyboard
-    if let Some(mut pos) = selection.tile {
-        if rl.is_key_pressed( KeyboardKey::KEY_RIGHT) {
-            if pos.x() + 1 < sector.width() {
-                pos.add_x(1);
-            }
-        }
-        if rl.is_key_pressed( KeyboardKey::KEY_LEFT) {
-            if pos.x() > 0 {
-                pos.subtract_x(1);
-            }
-        }
-        if rl.is_key_pressed( KeyboardKey::KEY_DOWN) {
-            if pos.y() + 1 < sector.height() {
-                pos.add_y(1);
-            }
-        }
-        if rl.is_key_pressed( KeyboardKey::KEY_UP) {
-            if pos.y() > 0 {
-                pos.subtract_y(1);
-            }
-        }
-        selection.tile = Some(pos);
-    }
-
-    // Gamepad
-    if let Some(mut pos) = selection.tile {
-        if rl.is_gamepad_button_pressed(0, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_RIGHT) {
-            if pos.x() + 1 < sector.width() {
-                pos.add_x(1);
-            }
-        }
-        if rl.is_gamepad_button_pressed(0, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_LEFT) {
-            if pos.x() > 0 {
-                pos.subtract_x(1);
-            }
-        }
-        if rl.is_gamepad_button_pressed(0, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_DOWN) {
-            if pos.y() + 1 < sector.height() {
-                pos.add_y(1);
-            }
-        }
-        if rl.is_gamepad_button_pressed(0, GamepadButton::GAMEPAD_BUTTON_RIGHT_FACE_UP) {
-            if pos.y() > 0 {
-                pos.subtract_y(1);
-            }
-        }
-        selection.tile = Some(pos);
     }
 }
