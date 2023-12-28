@@ -1,161 +1,73 @@
 use std::collections::HashMap;
 
-use juno::{
-    ivec,
-    vector::{IVec2, Vector},
-};
-use log::warn;
-use raylib::{
-    color::Color,
-    drawing::{RaylibDraw, RaylibDrawHandle},
+use juno::vector::{IVec2, Vector};
+use rust_raylib::{
+    drawing::{Draw, DrawHandle, DrawTextureParams},
     math::{Rectangle, Vector2},
-    texture::Texture2D,
-    RaylibHandle, RaylibThread,
+    texture::{RenderTexture, Texture},
+    Raylib,
 };
 
-pub fn load_assets(mut rl: &mut RaylibHandle, thread: &RaylibThread) -> TextureStore {
+pub fn load_assets() -> TextureStore {
     let mut textures = TextureStore::new();
     textures.load_atlas(
         "punyworld-tileset",
         "assets/punyworld-overworld-tileset.png",
-        rl,
-        thread,
     );
-    textures.add_sprite(
-        "grass-none",
-        "punyworld-tileset",
-        ivec!(0, 0),
-        ivec!(16, 16),
-    );
-    textures.add_sprite(
-        "grass-var1",
-        "punyworld-tileset",
-        ivec!(16, 0),
-        ivec!(16, 16),
-    );
-    textures.add_sprite(
-        "grass-var2",
-        "punyworld-tileset",
-        ivec!(32, 0),
-        ivec!(16, 16),
-    );
-    textures.add_sprite(
-        "path-bottom",
-        "punyworld-tileset",
-        ivec!(48, 0),
-        ivec!(16, 16),
-    );
-    textures.add_sprite(
-        "path-bottom,right",
-        "punyworld-tileset",
-        ivec!(64, 0),
-        ivec!(16, 16),
-    );
-    textures.add_sprite(
-        "path-bottom,left,right",
-        "punyworld-tileset",
-        ivec!(96, 0),
-        ivec!(16, 16),
-    );
-    textures.add_sprite(
-        "path-top",
-        "punyworld-tileset",
-        ivec!(48, 32),
-        ivec!(16, 16),
-    );
-
+    let tile_size = 16;
     return textures;
 }
 
 pub struct TextureStore {
-    textures: HashMap<String, Texture2D>,
-    tiles: HashMap<String, AtlasTile>,
+    textures: HashMap<String, Texture>,
+    target: RenderTexture,
 }
 
 impl TextureStore {
     fn new() -> Self {
-        return TextureStore {
+        TextureStore {
             textures: HashMap::new(),
-            tiles: HashMap::new(),
-        };
+            target: RenderTexture::new(1200, 720).unwrap(),
+        }
     }
 
-    fn load_atlas(
-        &mut self,
-        name: &str,
-        path: &str,
-        mut rl: &mut RaylibHandle,
-        thread: &RaylibThread,
-    ) {
-        let texture = rl.load_texture(thread, path).unwrap();
+    pub fn target(&self) -> &RenderTexture {
+        &self.target
+    }
+
+    fn load_atlas(&mut self, name: &str, path: &str) {
+        let texture = Texture::from_file(path).unwrap();
         self.textures.insert(name.to_string(), texture);
     }
 
-    fn add_sprite(&mut self, name: &str, parent: &str, origin: IVec2, size: IVec2) {
-        self.tiles.insert(
-            name.to_string(),
-            AtlasTile::new(parent.to_string(), origin, size),
+    pub fn draw_tile(
+        &self,
+        source: &IVec2,
+        origin: IVec2,
+        camera_offset: IVec2,
+        size: IVec2,
+        draw: &mut DrawHandle,
+    ) {
+        let tileset = self.textures.get("punyworld-tileset").unwrap();
+        draw.draw_texture(
+            tileset,
+            Vector2 {
+                x: *origin.x() as f32 + *camera_offset.x() as f32,
+                y: *origin.y() as f32 + *camera_offset.y() as f32,
+            },
+            DrawTextureParams {
+                source: Some(Rectangle::new(
+                    *source.x() as f32,
+                    *source.y() as f32,
+                    16.,
+                    16.,
+                )),
+                scale: Vector2 {
+                    x: *size.x() as f32 / 16.,
+                    y: *size.y() as f32 / 16.,
+                },
+                ..Default::default()
+            },
         );
-    }
-
-    pub fn render(&self, tag: String, origin: IVec2, size: IVec2, draw: &mut RaylibDrawHandle) {
-        let sprite = self.tiles.get(&tag).unwrap();
-        let texture = self.textures.get(&sprite.parent).unwrap();
-        draw.draw_texture_pro(
-            texture,
-            Rectangle::new(
-                *sprite.origin.x() as f32,
-                *sprite.origin.y() as f32,
-                *sprite.size.x() as f32,
-                *sprite.size.y() as f32,
-            ),
-            Rectangle::new(
-                *origin.x() as f32,
-                *origin.y() as f32,
-                *size.x() as f32,
-                *size.y() as f32,
-            ),
-            Vector2::new(0., 0.),
-            0.,
-            Color::WHITE,
-        )
-    }
-}
-
-pub struct AtlasTile {
-    // Name of parent texture
-    parent: String,
-    // Top left hand corner pos on parent texture
-    origin: IVec2,
-    // Texture size
-    size: IVec2,
-}
-
-impl AtlasTile {
-    pub fn new(parent: String, origin: IVec2, size: IVec2) -> Self {
-        return Self {
-            parent,
-            origin,
-            size,
-        };
-    }
-}
-
-pub struct Asset {
-    texture: Texture2D,
-}
-
-impl Asset {
-    fn load_texture(path: &str, mut rl: &mut RaylibHandle, thread: &RaylibThread) -> Option<Self> {
-        if let Ok(texture) = rl.load_texture(thread, format!("assets/{path}").as_str()) {
-            return Some(Asset { texture });
-        } else {
-            warn!("Could not load texture {path}");
-        }
-        return None;
-    }
-
-    pub fn texture(&self) -> &Texture2D {
-        return &self.texture;
     }
 }

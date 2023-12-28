@@ -13,15 +13,16 @@ use juno::{
     vector::{IVec2, Vector},
 };
 use log::{info, LevelFilter};
-use raylib::{
+use rust_raylib::{
     color::Color,
-    drawing::{RaylibDraw, RaylibDrawHandle},
+    drawing::{Draw, DrawHandle},
+    math::Vector2,
+    Raylib,
 };
-use sector::{Sector, Unit};
+use sector::Sector;
 use simplelog::{ColorChoice, Config, TermLogger};
-use terrain::TileType;
 
-use crate::{assets::load_assets, terrain::generate_terrain};
+use crate::{assets::load_assets, terrain::test_gen};
 
 fn main() {
     TermLogger::init(
@@ -33,85 +34,40 @@ fn main() {
     .unwrap();
 
     info!("Starting Raylib");
-    let (mut rl, thread) = raylib::init().size(1200, 720).title("WIP Game").build();
-    let asset_store = load_assets(&mut rl, &thread);
+    let mut raylib = Raylib::init_window(1200, 720, "Project Calamity").unwrap();
+    let asset_store = load_assets();
     info!("Assets loaded");
 
-    let mut sector = generate_terrain("Hello world sector".to_string(), ivec!(16, 16));
-    let mut unit = Unit::new(ivec!(3, 6), Color::GOLD, 4., &sector).unwrap();
-    sector.add_unit(unit);
+    let mut selection = Selection::default();
+    let sector = test_gen("Test Sector".to_string(), ivec!(48, 48));
 
-    info!("Sector created and unit added");
-
-    let mut selection = Selection::new();
-
-    while !rl.window_should_close() {
-        let d = rl.begin_drawing(&thread);
+    while !raylib.window_should_close() {
+        handle_inputs(&raylib, &sector, &mut selection);
+        let d = raylib.begin_drawing();
         // Render tiles
         render(d, &sector, &selection, &asset_store);
-        handle_inputs(&mut rl, &sector, &mut selection);
     }
 }
 
-fn render(mut d: RaylibDrawHandle, sector: &Sector, sel: &Selection, asset_store: &TextureStore) {
+fn render(mut d: DrawHandle, sector: &Sector, sel: &Selection, asset_store: &TextureStore) {
+    d.begin_texture_mode(asset_store.target());
     let edge = i32::min(1200 / sector.width(), 720 / sector.height());
+    let tile_texture_origin = sel.camera_position();
     for tile in sector.tiles() {
-        let tag = match tile.contents().tile_type() {
-            TileType::GrassNone => "grass-none",
-            TileType::GrassVar1 => "grass-var1",
-            TileType::GrassVar2 => "grass-var2",
-            TileType::PathBottom => "path-bottom",
-            TileType::PathBottomRight => "path-bottom,right",
-            TileType::PathBottomLeftRight => "path-bottom,left,right",
-            TileType::PathTop => "path-top",
-        };
         let origin = IVec2::new(edge * tile.pos().x(), edge * tile.pos().y());
         let size = IVec2::new(edge, edge);
-        asset_store.render(tag.to_string(), origin, size, &mut d);
+        let source_pos = tile.contents().atlas_position().clone() * 16;
+        asset_store.draw_tile(
+            &source_pos,
+            origin,
+            tile_texture_origin.clone(),
+            size,
+            &mut d,
+        );
     }
 
-    for u in sector.units() {
-        let x = (u.pos().x() * edge) + (edge / 2);
-        let y = (u.pos().y() * edge) + (edge / 2);
-        d.draw_circle(x as i32, y as i32, edge as f32 * 0.4, u.color());
-    }
-
-    // Render selection
-    // if let Some(pos) = sel.tile() {
-    //     let sel_texture = asset_store.get("selector-icon").unwrap().texture();
-    //     let pos = *pos;
-    //     d.draw_texture_ex(
-    //         sel_texture,
-    //         Vector2::new((pos.x() * edge) as f32, (pos.y() * edge) as f32),
-    //         0.,
-    //         3.,
-    //         Color::WHITE,
-    //     );
-    //     if let Some(unit) = sector.unit_at_tile(pos) {
-    //         // if !unit.has_nav() {
-    //         //     warn!("Attempting to render unit with no nav");
-    //         // }
-
-    //         // for x in 0..sector.width() {
-    //         //     for y in 0..sector.height() {
-    //         //         if let Some(nav) = unit.get_nav() {
-    //         //             if let Some(dist) = nav.tile(x, y) {
-    //         //                 if dist <= unit.movement() {
-    //         //                     d.draw_rectangle(
-    //         //                         (x * edge) as i32,
-    //         //                         (y * edge) as i32,
-    //         //                         edge as i32,
-    //         //                         edge as i32,
-    //         //                         Color::new(0, 0, 0, 128)
-    //         //                     );
-    //         //                 }
-    //         //             }
-    //         //         }
-    //         //     }
-    //         // }
-    //     }
-    // }
-
+    d.draw_text(sector.name(), Vector2 { x: 12., y: 12. }, 20, Color::GOLD);
+    d.draw_fps(Vector2 { x: 12., y: 120. });
     d.clear_background(Color::WHITE);
-    d.draw_text(&sector.name(), 12, 12, 20, Color::BLUE);
+    d.end_drawing();
 }

@@ -1,0 +1,178 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+   {
+    "x": 0,
+    "y": 2,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 7,
+    "y": 10,
+    "down": "grass_water_vertical_left",
+    "left": "grass",
+    "right": "grass_water_horizontal_up",
+    "up": "grass"
+  },
+  {
+    "x": 8,
+    "y": 10,
+    "down": "water",
+    "left": "grass_water_horizontal_up",
+    "right": "grass_water_horizontal_up",
+    "up": "grass"
+  },
+  {
+    "x": 9,
+    "y": 10,
+    "down": "grass_water_vertical_right",
+    "left": "grass_water_horizontal_up",
+    "right": "grass",
+    "up": "grass"
+  },
+  {
+    "x": 7,
+    "y": 11,
+    "down": "grass_water_vertical_left",
+    "left": "grass",
+    "right": "water",
+    "up": "grass_water_vertical_left"
+  },
+  {
+    "x": 8,
+    "y": 11,
+    "down": "water",
+    "left": "water",
+    "right": "water",
+    "up": "water"
+  },
+  {
+    "x": 9,
+    "y": 11,
+    "down": "grass_water_vertical_right",
+    "left": "water",
+    "right": "grass",
+    "up": "grass_water_vertical_right"
+  },
+  {
+    "x": 7,
+    "y": 12,
+    "down": "grass",
+    "left": "grass",
+    "right": "grass_water_horizontal_down",
+    "up": "grass_water_vertical_left"
+  },
+  {
+    "x": 8,
+    "y": 12,
+    "down": "grass",
+    "left": "grass_water_horizontal_down",
+    "right": "grass_water_horizontal_down",
+    "up": "water"
+  },
+  {
+    "x": 9,
+    "y": 12,
+    "down": "grass",
+    "left": "grass_water_horizontal_down",
+    "right": "grass",
+    "up": "grass_water_vertical_right"
+  },
+  {
+    "x": 10,
+    "y": 10,
+    "down": "water",
+    "left": "grass_water_horizontal_up",
+    "right": "water",
+    "up": "grass_water_vertical_left"
+  },
+  {
+    "x": 11,
+    "y": 10,
+    "down": "water",
+    "left": "water",
+    "right": "grass_water_horizontal_up",
+    "up": "grass_water_vertical_right"
+  },
+  {
+    "x": 10,
+    "y": 11,
+    "down": "grass_water_vertical_left",
+    "left": "grass_water_horizontal_down",
+    "right": "water",
+    "up": "water"
+  },
+  {
+    "x": 11,
+    "y": 11,
+    "down": "grass_water_vertical_right",
+    "left": "water",
+    "right": "grass_water_horizontal_down",
+    "up": "water"
+  }
+]

@@ -6,9 +6,7 @@ use juno::{
     ivec,
     vector::{IVec2, Vector},
 };
-use raylib::color::Color;
-
-use crate::terrain::TileType;
+use rust_raylib::color::Color;
 
 pub struct Sector {
     name: String,
@@ -223,15 +221,16 @@ impl NavigationBitmask {
     }
 }
 
+#[derive(Clone)]
 pub struct Tile {
-    tile_type: TileType,
+    atlas_position: IVec2,
     speed_modifier: f32,
 }
 
 impl Tile {
-    pub fn new(tile_type: TileType, speed_modifier: f32) -> Self {
+    pub fn new(atlas_position: IVec2, speed_modifier: f32) -> Self {
         return Self {
-            tile_type,
+            atlas_position,
             speed_modifier,
         };
     }
@@ -240,7 +239,7 @@ impl Tile {
         return self.speed_modifier;
     }
 
-    pub fn tile_type(&self) -> &TileType {
-        return &self.tile_type;
+    pub fn atlas_position(&self) -> &IVec2 {
+        return &self.atlas_position;
     }
 }
