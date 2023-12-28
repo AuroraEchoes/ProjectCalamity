@@ -7,7 +7,7 @@ pub mod sector;
 pub mod terrain;
 
 use assets::TextureStore;
-use interaction::{handle_inputs, Selection};
+use interaction::{handle_inputs, GameData};
 use juno::{
     ivec,
     vector::{IVec2, Vector},
@@ -19,7 +19,6 @@ use rust_raylib::{
     math::Vector2,
     Raylib,
 };
-use sector::Sector;
 use simplelog::{ColorChoice, Config, TermLogger};
 
 use crate::{assets::load_assets, terrain::test_gen};
@@ -32,41 +31,43 @@ fn main() {
         ColorChoice::Always,
     )
     .unwrap();
+    let sector = test_gen("Test Sector".to_string(), ivec!(48, 48));
+    let mut game_data = GameData::new_default(ivec!(1200, 720), sector);
 
     info!("Starting Raylib");
-    let mut raylib = Raylib::init_window(1200, 720, "Project Calamity").unwrap();
+    let mut raylib = Raylib::init_window(1920, 1080, "Project Calamity").unwrap();
     let asset_store = load_assets();
     info!("Assets loaded");
 
-    let mut selection = Selection::default();
-    let sector = test_gen("Test Sector".to_string(), ivec!(48, 48));
-
     while !raylib.window_should_close() {
-        handle_inputs(&raylib, &sector, &mut selection);
+        handle_inputs(&raylib, &mut game_data);
         let d = raylib.begin_drawing();
         // Render tiles
-        render(d, &sector, &selection, &asset_store);
+        render(d, &game_data, &asset_store);
     }
 }
 
-fn render(mut d: DrawHandle, sector: &Sector, sel: &Selection, asset_store: &TextureStore) {
+fn render(mut d: DrawHandle, data: &GameData, asset_store: &TextureStore) {
     d.begin_texture_mode(asset_store.target());
-    let edge = i32::min(1200 / sector.width(), 720 / sector.height());
-    let tile_texture_origin = sel.camera_position();
-    for tile in sector.tiles() {
-        let origin = IVec2::new(edge * tile.pos().x(), edge * tile.pos().y());
-        let size = IVec2::new(edge, edge);
-        let source_pos = tile.contents().atlas_position().clone() * 16;
-        asset_store.draw_tile(
-            &source_pos,
-            origin,
-            tile_texture_origin.clone(),
-            size,
-            &mut d,
+    let edge = data.tile_edge_len();
+    let offset = data.camera_position().position();
+    let scale = data.camera_position().scale();
+    for tile in data.sector().tiles() {
+        let origin = IVec2::new(
+            ((edge * tile.pos().x() - offset.x()) as f32 * scale) as i32,
+            ((edge * tile.pos().y() - offset.y()) as f32 * scale) as i32,
         );
+        let size = IVec2::new((edge as f32 * scale) as i32, (edge as f32 * scale) as i32);
+        let source_pos = tile.contents().atlas_position().clone() * 16;
+        asset_store.draw_tile(&source_pos, origin, size, &mut d);
     }
 
-    d.draw_text(sector.name(), Vector2 { x: 12., y: 12. }, 20, Color::GOLD);
+    d.draw_text(
+        data.sector().name(),
+        Vector2 { x: 12., y: 12. },
+        20,
+        Color::GOLD,
+    );
     d.draw_fps(Vector2 { x: 12., y: 120. });
     d.clear_background(Color::WHITE);
     d.end_drawing();

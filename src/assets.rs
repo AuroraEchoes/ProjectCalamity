@@ -8,6 +8,8 @@ use rust_raylib::{
     Raylib,
 };
 
+use crate::interaction::camera_position::{self, CameraPosition};
+
 pub fn load_assets() -> TextureStore {
     let mut textures = TextureStore::new();
     textures.load_atlas(
@@ -40,20 +42,13 @@ impl TextureStore {
         self.textures.insert(name.to_string(), texture);
     }
 
-    pub fn draw_tile(
-        &self,
-        source: &IVec2,
-        origin: IVec2,
-        camera_offset: IVec2,
-        size: IVec2,
-        draw: &mut DrawHandle,
-    ) {
+    pub fn draw_tile(&self, source: &IVec2, origin: IVec2, size: IVec2, draw: &mut DrawHandle) {
         let tileset = self.textures.get("punyworld-tileset").unwrap();
         draw.draw_texture(
             tileset,
             Vector2 {
-                x: *origin.x() as f32 + *camera_offset.x() as f32,
-                y: *origin.y() as f32 + *camera_offset.y() as f32,
+                x: *origin.x() as f32,
+                y: *origin.y() as f32,
             },
             DrawTextureParams {
                 source: Some(Rectangle::new(

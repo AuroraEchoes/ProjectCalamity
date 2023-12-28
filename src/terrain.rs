@@ -132,11 +132,6 @@ fn test_meta_sec(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec2) -> 
                 false => CHUNK_BLEND_LENGTH,
             }
         });
-        info!(
-            "Subsector {:?} —  {:?}",
-            subsector.pos(),
-            ivec!(sub_x as i32, sub_y as i32)
-        );
         for tile in subsector.contents().tiles().tiles() {
             if let Some(old_tile) = sector_grid.tile_mut(&ivec!(
                 sub_x as i32 + tile.pos().x(),
