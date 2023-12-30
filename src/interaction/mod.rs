@@ -4,7 +4,6 @@ use juno::{
     ivec,
     vector::{IVec2, Vector},
 };
-use log::debug;
 use rust_raylib::{MouseButton, Raylib};
 
 use crate::sector::Sector;
@@ -65,6 +64,13 @@ impl GameData {
 }
 
 pub fn handle_inputs(raylib: &Raylib, data: &mut GameData) {
+    let edge_length = data.tile_edge_len();
+    let sector_px_dim = ivec!(
+        *data.sector().width() * edge_length,
+        *data.sector().height() * edge_length
+    );
+    let screen_size = data.screen_size().clone();
+
     // Mouse
     if raylib.is_mouse_button_pressed(MouseButton::Left) {
         let mouse_pos = IVec2::new(raylib.get_mouse_x(), raylib.get_mouse_y());
@@ -90,25 +96,12 @@ pub fn handle_inputs(raylib: &Raylib, data: &mut GameData) {
     if raylib.is_mouse_button_down(MouseButton::Right) {
         let mouse_delta_rl = raylib.get_mouse_delta();
         let mouse_delta = ivec!(mouse_delta_rl.x as i32, mouse_delta_rl.y as i32);
-        let edge_length = data.tile_edge_len();
-        let sector_width = *data.sector().width() * edge_length;
-        let sector_height = *data.sector().height() * edge_length;
-        debug!(
-            "edge {:?} width {:?} height {:?} scale {:?}",
-            edge_length,
-            sector_width,
-            sector_height,
-            data.camera_position().scale()
-        );
-        data.camera_position_mut().move_camera(
-            mouse_delta,
-            sector_width as f32,
-            sector_height as f32,
-        );
+        data.camera_position_mut()
+            .move_camera(mouse_delta, &sector_px_dim, &screen_size);
     }
     // Zooming
     let mouse_wheel_delta = raylib.get_mouse_wheel_move_vec().y;
     if mouse_wheel_delta != 0. {
-        data.camera_position_mut().zoom_camera(mouse_wheel_delta)
+        data.camera_position_mut().zoom_camera(mouse_wheel_delta);
     }
 }

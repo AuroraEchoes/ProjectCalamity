@@ -21,7 +21,7 @@ use rust_raylib::{
 };
 use simplelog::{ColorChoice, Config, TermLogger};
 
-use crate::{assets::load_assets, terrain::test_gen};
+use crate::{assets::load_assets, terrain::generate_terrain};
 
 fn main() {
     TermLogger::init(
@@ -31,12 +31,17 @@ fn main() {
         ColorChoice::Always,
     )
     .unwrap();
-    let sector = test_gen("Test Sector".to_string(), ivec!(48, 48));
+    let sector = generate_terrain(ivec!(32, 32), "New terrain test sector".to_string());
     let mut game_data = GameData::new_default(ivec!(1200, 720), sector);
 
     info!("Starting Raylib");
-    let mut raylib = Raylib::init_window(1920, 1080, "Project Calamity").unwrap();
-    let asset_store = load_assets();
+    let mut raylib = Raylib::init_window(
+        *game_data.screen_size().x() as u32,
+        *game_data.screen_size().y() as u32,
+        "Project Calamity",
+    )
+    .unwrap();
+    let asset_store = load_assets(game_data.sector().size(), &ivec!(16, 16));
     info!("Assets loaded");
 
     while !raylib.window_should_close() {

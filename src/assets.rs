@@ -5,19 +5,15 @@ use rust_raylib::{
     drawing::{Draw, DrawHandle, DrawTextureParams},
     math::{Rectangle, Vector2},
     texture::{RenderTexture, Texture},
-    Raylib,
 };
 
-use crate::interaction::camera_position::{self, CameraPosition};
-
-pub fn load_assets() -> TextureStore {
-    let mut textures = TextureStore::new();
+pub fn load_assets(sector_size: &IVec2, sprite_size: &IVec2) -> TextureStore {
+    let mut textures = TextureStore::new(sector_size, sprite_size);
     textures.load_atlas(
         "punyworld-tileset",
         "assets/punyworld-overworld-tileset.png",
     );
-    let tile_size = 16;
-    return textures;
+    textures
 }
 
 pub struct TextureStore {
@@ -26,10 +22,14 @@ pub struct TextureStore {
 }
 
 impl TextureStore {
-    fn new() -> Self {
+    fn new(sector_size: &IVec2, sprite_size: &IVec2) -> Self {
         TextureStore {
             textures: HashMap::new(),
-            target: RenderTexture::new(1200, 720).unwrap(),
+            target: RenderTexture::new(
+                (sector_size.x() * sprite_size.x()) as u32,
+                (sector_size.y() * sprite_size.y()) as u32,
+            )
+            .unwrap(),
         }
     }
 

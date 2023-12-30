@@ -64,6 +64,11 @@ pub fn test_gen(name: String, size: IVec2) -> Sector {
     let mut meta_grid = divide_to_subsectors(size.clone());
     let static_tiles = load_tilemap_json();
     for subsector in meta_grid.tiles_mut() {
+        match subsector.contents().generation_stage() {
+            GenerationStage::Primary => todo!(),
+            GenerationStage::Secondary => todo!(),
+            GenerationStage::Tertiary => todo!(),
+        }
         let tile = static_tiles.choose(&mut rand::thread_rng()).unwrap();
         for y in 0..*subsector.contents().tiles.height() {
             for x in 0..*subsector.contents().tiles.width() {
@@ -117,7 +122,6 @@ fn divide_to_subsectors<'a>(size: IVec2) -> Grid<MTGenSubSector<'a>> {
 
 fn test_meta_sec(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec2) -> Sector {
     let mut sector_grid = Grid::new(size.clone());
-    let static_tiles = load_tilemap_json();
     sector_grid.fill(Tile::new(ivec!(0, 0), 1.));
     for subsector in meta_grid.tiles() {
         let sub_x = (0..*subsector.pos().x()).fold(0, |acc, t| {
@@ -147,6 +151,10 @@ fn test_meta_sec(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec2) -> 
     Sector::new(name, sector_grid, vec![])
 }
 
+fn generate_chunk(chunk: &mut MTGenSubSector) {
+    // If there are no adjacent tiles, we start from scratch. If there *are* adjacent tiles,
+}
+
 fn meta_grid_to_sector(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec2) -> Sector {
     let mut sector_grid = Grid::new(size.clone());
     for y in 0..*size.y() {
@@ -155,7 +163,6 @@ fn meta_grid_to_sector(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec
                 2 * (x as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) as i32 - 1,
                 2 * (y as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) as i32 - 1
             );
-            println!("x {x:?} y {y:?}, sub: {subsector_pos:?}");
             let sub_x = (0..*subsector_pos.x()).fold(x, |acc, t| {
                 acc - match t % 2 == 0 {
                     true => 8,
@@ -180,7 +187,6 @@ fn meta_grid_to_sector(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec
             }
         }
     }
-
     Sector::new(name, sector_grid, vec![])
 }
 
@@ -207,13 +213,17 @@ impl<'a> MTGenSubSector<'a> {
     pub fn tiles(&self) -> &Grid<MTGenTile<'a>> {
         &self.tiles
     }
+
+    pub fn generation_stage(&self) -> &GenerationStage {
+        &self.generation_stage()
+    }
 }
 
 // The largest sectors can be done individually, all at once. Then we have to get progressively
 // smaller in our chunk sizes to allow blending finer points. See https://imgur.com/a/Vts2yFe for a
 // diagram —  red sectors are done first, blue sectors second, and green sectors third.
 #[derive(Clone, Debug)]
-enum GenerationStage {
+pub enum GenerationStage {
     Primary,
     Secondary,
     Tertiary,
