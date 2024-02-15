@@ -1,79 +1,48 @@
 // Prevailing note
 // Take screenshots of bugs for a "bug montage" to What Is Love - Haddaway (https://youtube.com/watch?v=SxQdbtjGEsc)
 
-pub mod assets;
 pub mod interaction;
+pub mod juno;
 pub mod sector;
 pub mod terrain;
+pub mod terrain_old;
 
-use assets::TextureStore;
-use interaction::{handle_inputs, GameData};
-use juno::{
-    ivec,
-    vector::{IVec2, Vector},
-};
-use log::{info, LevelFilter};
-use rust_raylib::{
-    color::Color,
-    drawing::{Draw, DrawHandle},
-    math::Vector2,
-    Raylib,
-};
-use simplelog::{ColorChoice, Config, TermLogger};
-
-use crate::{assets::load_assets, terrain::generate_terrain};
+use crate::juno::{renderer::quad::TexturedQuad, JunoApp};
+use cgmath::Vector2;
+use interaction::GameData;
+use juno::renderer::{renderer::Renderer, testing::TextureAtlasHandle};
 
 fn main() {
-    TermLogger::init(
-        LevelFilter::Trace,
-        Config::default(),
-        simplelog::TerminalMode::Stdout,
-        ColorChoice::Always,
-    )
-    .unwrap();
-    let sector = generate_terrain(ivec!(32, 32), "New terrain test sector".to_string());
-    let mut game_data = GameData::new_default(ivec!(1200, 720), sector);
+    let sector =
+        terrain_old::generate_terrain(Vector2::new(32, 32), "New terrain test sector".to_string());
+    let screen_size = Vector2::new(1280, 720);
+    let game_data = GameData::new_default(screen_size, sector);
+    let mut app = JunoApp::new(screen_size.x, screen_size.y);
+    let punyworld = app
+        .load_texture_atlas("punyworld-overworld-tileset.png", Vector2::new(16, 16))
+        .unwrap();
 
-    info!("Starting Raylib");
-    let mut raylib = Raylib::init_window(
-        *game_data.screen_size().x() as u32,
-        *game_data.screen_size().y() as u32,
-        "Project Calamity",
-    )
-    .unwrap();
-    let asset_store = load_assets(game_data.sector().size(), &ivec!(16, 16));
-    info!("Assets loaded");
-
-    while !raylib.window_should_close() {
-        handle_inputs(&raylib, &mut game_data);
-        let d = raylib.begin_drawing();
-        // Render tiles
-        render(d, &game_data, &asset_store);
+    while app.update() {
+        // TODO handle_inputs(&raylib, &mut game_data);
+        println!("Inputs: {:?}", app.input_state());
+        render(app.renderer_mut(), &game_data, &punyworld);
+        app.render();
     }
 }
 
-fn render(mut d: DrawHandle, data: &GameData, asset_store: &TextureStore) {
-    d.begin_texture_mode(asset_store.target());
-    let edge = data.tile_edge_len();
-    let offset = data.camera_position().position();
-    let scale = data.camera_position().scale();
-    for tile in data.sector().tiles() {
-        let origin = IVec2::new(
-            ((edge * tile.pos().x() - offset.x()) as f32 * scale) as i32,
-            ((edge * tile.pos().y() - offset.y()) as f32 * scale) as i32,
-        );
-        let size = IVec2::new((edge as f32 * scale) as i32, (edge as f32 * scale) as i32);
-        let source_pos = tile.contents().atlas_position().clone() * 16;
-        asset_store.draw_tile(&source_pos, origin, size, &mut d);
+fn render(renderer: &mut Renderer, game_data: &GameData, punyworld: &TextureAtlasHandle) {
+    let edge_len = game_data.tile_edge_len();
+    for tile in game_data.sector().tiles() {
+        renderer.submit_textured_quad(TexturedQuad::new(
+            Vector2::new(
+                (tile.pos().x * edge_len) as i32,
+                (tile.pos().y * edge_len) as i32,
+            ),
+            Vector2::new(edge_len as i32, edge_len as i32),
+            punyworld.texture(
+                tile.contents().atlas_position().x,
+                tile.contents().atlas_position().y,
+            ),
+        ));
     }
-
-    d.draw_text(
-        data.sector().name(),
-        Vector2 { x: 12., y: 12. },
-        20,
-        Color::GOLD,
-    );
-    d.draw_fps(Vector2 { x: 12., y: 120. });
-    d.clear_background(Color::WHITE);
-    d.end_drawing();
 }

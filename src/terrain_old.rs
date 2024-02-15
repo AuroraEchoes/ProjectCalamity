@@ -1,35 +1,31 @@
 // For now, we'll do a simple wave-function collapse implementation
 // Later, we can add the special sauce
 
-use juno::{
-    grid::{Grid, GridItem},
-    ivec,
-    vector::Vector,
-    vector::{self, IVec2},
-};
-use log::{info, warn};
+use cgmath::Vector2;
 use rand::seq::SliceRandom;
-use rust_raylib::ffi::MaximizeWindow;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    assets::load_assets,
+    juno::{
+        directions,
+        grid::{Grid, GridItem},
+    },
     sector::{Sector, Tile},
 };
 
 const MAX_CHUNK_LENGTH: u32 = 8;
 const CHUNK_BLEND_LENGTH: u32 = 2;
 
-pub fn generate_terrain(name: String, dimensions: IVec2) -> Sector {
+pub fn generate_terrain(dimensions: Vector2<u32>, name: String) -> Sector {
     let mut generation_grid = Grid::<TerrainGenerationTile>::new(dimensions);
     let static_tiles = load_tilemap_json();
     generation_grid.fill(TerrainGenerationTile::new());
 
     // Set starting position
     // NOTE: consider doing this randomly in future?
-    let starting_position = ivec!(0, 0);
-    calculate_tile(&mut generation_grid, &starting_position, &static_tiles);
-    calculate_adj_entropies(&mut generation_grid, &starting_position, &static_tiles);
+    let starting_position = Vector2::new(0, 0);
+    calculate_tile(&mut generation_grid, starting_position, &static_tiles);
+    calculate_adj_entropies(&mut generation_grid, starting_position, &static_tiles);
     let mut previous_empty_tiles = 0;
     let mut empty_tiles_stored = empty_tiles(&generation_grid);
     while empty_tiles_stored > 0 {
@@ -51,7 +47,6 @@ pub fn generate_terrain(name: String, dimensions: IVec2) -> Sector {
             }
             calculate_adj_entropies(&mut generation_grid, selected_position, &static_tiles);
         } else {
-            warn!("No entropy found");
         }
         previous_empty_tiles = empty_tiles_stored;
         empty_tiles_stored = empty_tiles(&generation_grid);
@@ -60,37 +55,14 @@ pub fn generate_terrain(name: String, dimensions: IVec2) -> Sector {
     generation_grid_to_sector(name, generation_grid)
 }
 
-pub fn test_gen(name: String, size: IVec2) -> Sector {
-    let mut meta_grid = divide_to_subsectors(size.clone());
-    let static_tiles = load_tilemap_json();
-    for subsector in meta_grid.tiles_mut() {
-        match subsector.contents().generation_stage() {
-            GenerationStage::Primary => todo!(),
-            GenerationStage::Secondary => todo!(),
-            GenerationStage::Tertiary => todo!(),
-        }
-        let tile = static_tiles.choose(&mut rand::thread_rng()).unwrap();
-        for y in 0..*subsector.contents().tiles.height() {
-            for x in 0..*subsector.contents().tiles.width() {
-                subsector
-                    .contents_mut()
-                    .tiles
-                    .push(GridItem::new(ivec!(x, y), MTGenTile { static_tile: tile }));
-            }
-        }
-    }
-
-    test_meta_sec(meta_grid, name, size)
-}
-
-fn divide_to_subsectors<'a>(size: IVec2) -> Grid<MTGenSubSector<'a>> {
-    let meta_size = ivec!(
-        2 * (*size.x() as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) as i32 - 1,
-        2 * (*size.y() as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) as i32 - 1
+fn divide_to_subsectors<'a>(size: Vector2<i32>) -> Grid<MTGenSubSector<'a>> {
+    let meta_size = Vector2::new(
+        2 * (size.x as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) - 1,
+        2 * (size.y as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) - 1,
     );
     let mut meta_gen_grid = Grid::<MTGenSubSector>::new(meta_size);
-    for y in 0..*meta_gen_grid.height() {
-        for x in 0..*meta_gen_grid.width() {
+    for y in 0..meta_gen_grid.height() {
+        for x in 0..meta_gen_grid.width() {
             // Large "primary" subsectors will always have even coordinates, while secondary
             // sections will have one even and one odd coordinate, and tertiary sections will have
             // exclusively odd coordinates
@@ -109,40 +81,37 @@ fn divide_to_subsectors<'a>(size: IVec2) -> Grid<MTGenSubSector<'a>> {
                 (true, false) | (false, true) => GenerationStage::Secondary,
                 (false, false) => GenerationStage::Tertiary,
             };
-            let subsector = MTGenSubSector::new(
-                stage,
-                Grid::<MTGenTile>::new(ivec!(width as i32, height as i32)),
-            );
-            let domsector = GridItem::new(ivec!(x, y), subsector);
+            let subsector =
+                MTGenSubSector::new(stage, Grid::<MTGenTile>::new(Vector2::new(width, height)));
+            let domsector = GridItem::new(Vector2::new(x, y), subsector);
             meta_gen_grid.push(domsector);
         }
     }
     meta_gen_grid
 }
 
-fn test_meta_sec(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec2) -> Sector {
+fn test_meta_sec(meta_grid: Grid<MTGenSubSector>, name: String, size: Vector2<u32>) -> Sector {
     let mut sector_grid = Grid::new(size.clone());
-    sector_grid.fill(Tile::new(ivec!(0, 0), 1.));
+    sector_grid.fill(Tile::new(Vector2::new(0, 0), 1.));
     for subsector in meta_grid.tiles() {
-        let sub_x = (0..*subsector.pos().x()).fold(0, |acc, t| {
+        let sub_x = (0..subsector.pos().x).fold(0, |acc, t| {
             acc + match t % 2 == 0 {
                 true => MAX_CHUNK_LENGTH,
                 false => CHUNK_BLEND_LENGTH,
             }
         });
-        let sub_y = (0..*subsector.pos().y()).fold(0, |acc, t| {
+        let sub_y = (0..subsector.pos().y).fold(0, |acc, t| {
             acc + match t % 2 == 0 {
                 true => MAX_CHUNK_LENGTH,
                 false => CHUNK_BLEND_LENGTH,
             }
         });
         for tile in subsector.contents().tiles().tiles() {
-            if let Some(old_tile) = sector_grid.tile_mut(&ivec!(
-                sub_x as i32 + tile.pos().x(),
-                sub_y as i32 + tile.pos().y()
-            )) {
+            if let Some(old_tile) =
+                sector_grid.tile_mut(Vector2::new(sub_x + tile.pos().x, sub_y + tile.pos().y))
+            {
                 *old_tile = GridItem::new(
-                    ivec!(sub_x as i32 + tile.pos().x(), sub_y as i32 + tile.pos().y()),
+                    Vector2::new(sub_x + tile.pos().x, sub_y + tile.pos().y),
                     Tile::new(tile.contents().static_tile.pos(), 1.),
                 );
             }
@@ -155,35 +124,41 @@ fn generate_chunk(chunk: &mut MTGenSubSector) {
     // If there are no adjacent tiles, we start from scratch. If there *are* adjacent tiles,
 }
 
-fn meta_grid_to_sector(meta_grid: Grid<MTGenSubSector>, name: String, size: IVec2) -> Sector {
-    let mut sector_grid = Grid::new(size.clone());
-    for y in 0..*size.y() {
-        for x in 0..*size.x() {
-            let subsector_pos = ivec!(
-                2 * (x as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) as i32 - 1,
-                2 * (y as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) as i32 - 1
+fn meta_grid_to_sector(
+    meta_grid: Grid<MTGenSubSector>,
+    name: String,
+    size: Vector2<u32>,
+) -> Sector {
+    let mut sector_grid = Grid::new(size);
+    for y in 0..size.y {
+        for x in 0..size.x {
+            let subsector_pos = Vector2::new(
+                2 * (x as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) - 1,
+                2 * (y as u32).div_ceil(MAX_CHUNK_LENGTH + CHUNK_BLEND_LENGTH) - 1,
             );
-            let sub_x = (0..*subsector_pos.x()).fold(x, |acc, t| {
+            let sub_x = (0..subsector_pos.x).fold(x, |acc, t| {
                 acc - match t % 2 == 0 {
                     true => 8,
                     false => 2,
                 }
             });
-            let sub_y = (0..*subsector_pos.x()).fold(y, |acc, t| {
+            let sub_y = (0..subsector_pos.x).fold(y, |acc, t| {
                 acc - match t % 2 == 0 {
                     true => 8,
                     false => 2,
                 }
             });
-            if let Some(subsector) = meta_grid.tile(&subsector_pos) {
-                if let Some(tile) = subsector.contents().tiles().tile(&ivec!(sub_x, sub_y)) {
+            if let Some(subsector) = meta_grid.tile(subsector_pos) {
+                if let Some(tile) = subsector
+                    .contents()
+                    .tiles()
+                    .tile(Vector2::new(sub_x, sub_y))
+                {
                     let sector_tile = Tile::new(tile.contents().static_tile.pos(), 1.);
-                    sector_grid.push(GridItem::new(ivec!(x, y), sector_tile));
+                    sector_grid.push(GridItem::new(Vector2::new(x, y), sector_tile));
                 } else {
-                    warn!("Tile in grid not found");
                 }
             } else {
-                warn!("Subsector not found {:?}", ivec!(x, y));
             }
         }
     }
@@ -229,8 +204,8 @@ pub enum GenerationStage {
     Tertiary,
 }
 
-fn empty_tiles(grid: &Grid<TerrainGenerationTile>) -> i32 {
-    (grid.width() * grid.height()) - grid.tiles().filter(|t| t.contents().tile_set()).count() as i32
+fn empty_tiles(grid: &Grid<TerrainGenerationTile>) -> u32 {
+    (grid.width() * grid.height()) - grid.tiles().filter(|t| t.contents().tile_set()).count() as u32
 }
 
 fn generation_grid_to_sector(name: String, generation_grid: Grid<TerrainGenerationTile>) -> Sector {
@@ -248,7 +223,7 @@ fn generation_grid_to_sector(name: String, generation_grid: Grid<TerrainGenerati
 
 fn calculate_tile(
     grid: &mut Grid<TerrainGenerationTile>,
-    pos: &IVec2,
+    pos: Vector2<u32>,
     static_tiles: &[StaticTileInfo],
 ) {
     // Find possible adjacent tiles
@@ -256,7 +231,7 @@ fn calculate_tile(
     // 2. `choose_tile()` from the filtered list
     let filtered_static_tiles = static_tiles
         .iter()
-        .filter(|stat| position_allows_static_tile(pos, stat, grid))
+        .filter(|stat| position_allows_static_tile(&pos, stat, grid))
         .collect::<Vec<_>>();
     if let Some(tile) = grid.tile_mut(pos) {
         // HACK: Improve `choose_tile()` function —  this is temporary
@@ -272,14 +247,14 @@ fn calculate_tile(
 
 fn calculate_entropy(
     grid: &mut Grid<TerrainGenerationTile>,
-    pos: &IVec2,
+    pos: &Vector2<u32>,
     static_tiles: &[StaticTileInfo],
 ) {
     let entropy = static_tiles
         .iter()
         .filter(|stat| position_allows_static_tile(pos, stat, grid))
         .count();
-    if let Some(tile) = grid.tile_mut(pos) {
+    if let Some(tile) = grid.tile_mut(*pos) {
         let contents = tile.contents_mut();
         if !contents.tile_set() {
             tile.contents_mut().set_entropy(entropy as i32);
@@ -289,7 +264,7 @@ fn calculate_entropy(
 
 fn calculate_adj_entropies(
     grid: &mut Grid<TerrainGenerationTile>,
-    pos: &IVec2,
+    pos: Vector2<u32>,
     static_tiles: &[StaticTileInfo],
 ) {
     let positions = grid
@@ -301,7 +276,7 @@ fn calculate_adj_entropies(
         .for_each(|pos| calculate_entropy(grid, pos, static_tiles));
 }
 
-fn min_entropy(grid: &Grid<TerrainGenerationTile>) -> Option<&IVec2> {
+fn min_entropy(grid: &Grid<TerrainGenerationTile>) -> Option<Vector2<u32>> {
     if let Some(min_entropy_tile) = grid.tiles().reduce(|acc, t| {
         if let Some(acc_entropy) = acc.contents().entropy() {
             if let Some(t_entropy) = t.contents().entropy() {
@@ -324,30 +299,34 @@ fn min_entropy(grid: &Grid<TerrainGenerationTile>) -> Option<&IVec2> {
 }
 
 fn position_allows_static_tile(
-    pos: &IVec2,
+    pos: &Vector2<u32>,
     stat: &StaticTileInfo,
     grid: &Grid<TerrainGenerationTile>,
 ) -> bool {
     // Filtering for edges which *don't* allow this tile. So if this has a length that
     // isn't 0, we know that we can't use this tile
 
-    grid.adjacent(pos)
-        .map(|adj_tile| match adj_tile.pos() - pos {
-            vector::DOWN => static_tile(adj_tile)
-                .as_ref()
-                .map_or_else(|| true, |t| stat.down == t.up),
-            vector::LEFT => static_tile(adj_tile)
-                .as_ref()
-                .map_or_else(|| true, |t| stat.left == t.right),
-            vector::RIGHT => static_tile(adj_tile)
-                .as_ref()
-                .map_or_else(|| true, |t| stat.right == t.left),
-            vector::UP => static_tile(adj_tile)
-                .as_ref()
-                .map_or_else(|| true, |t| stat.up == t.down),
-            _ => {
-                warn!("Found adjacent edge not in any cardinal direction");
-                false // Is *not* allowed
+    grid.adjacent(*pos)
+        .map(|adj_tile| {
+            match Vector2::new(
+                adj_tile.pos().x as i32 - pos.x as i32,
+                adj_tile.pos().y as i32 - pos.y as i32,
+            ) {
+                directions::DOWN => static_tile(adj_tile)
+                    .as_ref()
+                    .map_or_else(|| true, |t| stat.down == t.up),
+                directions::LEFT => static_tile(adj_tile)
+                    .as_ref()
+                    .map_or_else(|| true, |t| stat.left == t.right),
+                directions::RIGHT => static_tile(adj_tile)
+                    .as_ref()
+                    .map_or_else(|| true, |t| stat.right == t.left),
+                directions::UP => static_tile(adj_tile)
+                    .as_ref()
+                    .map_or_else(|| true, |t| stat.up == t.down),
+                _ => {
+                    false // Is *not* allowed
+                }
             }
         })
         .filter(|b| !b) // We're checking for non-matching edges
@@ -368,8 +347,8 @@ fn load_tilemap_json() -> Vec<StaticTileInfo> {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StaticTileInfo {
-    x: i32,
-    y: i32,
+    x: u32,
+    y: u32,
     down: String,
     left: String,
     up: String,
@@ -377,8 +356,8 @@ pub struct StaticTileInfo {
 }
 
 impl StaticTileInfo {
-    fn pos(&self) -> IVec2 {
-        ivec!(self.x, self.y)
+    fn pos(&self) -> Vector2<u32> {
+        Vector2::new(self.x, self.y)
     }
 }
 

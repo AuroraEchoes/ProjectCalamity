@@ -1,4 +1,4 @@
-use juno::vector::IVec2;
+use cgmath::Vector2;
 use log::info;
 
 use crate::sector::Sector;
@@ -20,12 +20,12 @@ const LONG_RATIO: u32 = 4; // Ratio between base size and "long" size
 const SHORT_LENGTH: u32 = BASE_SIZE;
 const LONG_LENGTH: u32 = BASE_SIZE * LONG_RATIO;
 
-pub fn generate_terrain(size: IVec2, name: String) -> Sector {
+pub fn generate_terrain(size: Vector2<u32>, name: String) -> Sector {
     // For now let's put in some pseudocode!
     // 1. Find the primary sectors
     let static_tiles_vec = load_tilemap_json();
     let static_tiles = static_tiles_vec.as_slice();
-    let mut meta_grid = subsectors(&size);
+    let mut meta_grid = subsectors(size);
     info!("Created meta grid");
     // 2. Fill each primary subsector randomly using wave function collapse —  each subsector on a
     //    seperate thread

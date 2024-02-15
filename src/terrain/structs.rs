@@ -1,10 +1,7 @@
-use juno::{
-    grid::{Grid, GridItem},
-    ivec,
-    vector::{IVec2, Vector},
-};
-use log::info;
+use cgmath::Vector2;
 use serde::{Deserialize, Serialize};
+
+use crate::juno::grid::{Grid, GridItem};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StaticTileInfo {
@@ -28,8 +25,8 @@ impl StaticTileInfo {
         }
     }
 
-    pub fn pos(&self) -> IVec2 {
-        ivec!(self.x, self.y)
+    pub fn pos(&self) -> Vector2<i32> {
+        Vector2::new(self.x, self.y)
     }
 
     pub fn down(&self) -> &String {
