@@ -1,15 +1,16 @@
 use cgmath::Vector2;
+use log::info;
 
 use crate::{
     juno::{
-        directions,
+        directions::{self, i32_u32_cast},
         grid::{Grid, GridItem},
     },
     sector::{Sector, Tile},
 };
 
 use super::{
-    structs::{GenTile, GenerationStage, Subsector},
+    structs::{GenTile, GenerationStage, StaticTileInfo, Subsector},
     LONG_LENGTH, SHORT_LENGTH,
 };
 
@@ -20,11 +21,9 @@ pub fn subsectors(size: Vector2<u32>) -> Grid<Subsector> {
         for x in 0..meta_grid.width() {
             let stage = generation_stage(x, y);
             let (width, height) = side_lengths(stage.clone());
-            let (adjusted_width, adjusted_height) = adjust_lengths(stage.clone(), width, height);
-            let subsector = Subsector::new(
-                stage,
-                Grid::<GenTile>::new(Vector2::new(adjusted_width, adjusted_height)),
-            );
+            // let (adjusted_width, adjusted_height) = adjust_lengths(stage.clone(), width, height);
+            let subsector =
+                Subsector::new(stage, Grid::<GenTile>::new(Vector2::new(width, height)));
             let domsector = GridItem::new(Vector2::new(x, y), subsector);
             meta_grid.push(domsector);
         }
@@ -45,7 +44,7 @@ fn meta_size(size: u32) -> u32 {
     2 * size.div_ceil(LONG_LENGTH + SHORT_LENGTH) - 1
 }
 
-// Calculate the position of a tile within it's sector
+/// Calculate the position of a tile within it's sector
 fn position_within_sector(mut position: u32) -> u32 {
     while position > LONG_LENGTH + SHORT_LENGTH {
         position -= LONG_LENGTH + SHORT_LENGTH
@@ -159,7 +158,7 @@ pub fn stitch_subsectors(meta_grid: Grid<Subsector>, name: String, size: Vector2
                                     Vector2::new(x, y),
                                     Tile::new(
                                         gen_tile.contents().static_tile().as_ref().map_or(
-                                            Vector2::new(22, 4),
+                                            Vector2::new(21, 4),
                                             |static_tile| {
                                                 Vector2::new(
                                                     static_tile.pos().x as u32,
@@ -179,10 +178,61 @@ pub fn stitch_subsectors(meta_grid: Grid<Subsector>, name: String, size: Vector2
     Sector::new(name, sector_grid, vec![])
 }
 
+pub fn neo_stitch_subsectors(
+    meta_grid: Grid<Subsector>,
+    name: String,
+    size: Vector2<u32>,
+) -> Sector {
+    let mut sector_grid = Grid::new(size);
+    sector_grid.fill(Tile::new(Vector2::new(21, 4), 1.));
+    for subsector in meta_grid.tiles() {
+        for tile in subsector.contents().grid().tiles() {
+            let pos = subsector_tile_position(tile.pos(), subsector.pos());
+            if let Some(prev_tile) = sector_grid.tile_mut(pos) {
+                prev_tile.contents_mut().set_atlas_position(
+                    i32_u32_cast(
+                        tile.contents()
+                            .static_tile()
+                            .clone()
+                            .unwrap_or(StaticTileInfo::new(
+                                22,
+                                5,
+                                "grass".to_string(),
+                                "grass".to_string(),
+                                "grass".to_string(),
+                                "grass".to_string(),
+                            ))
+                            .pos(),
+                    )
+                    .unwrap(),
+                )
+            }
+        }
+    }
+    Sector::new(name, sector_grid, vec![])
+}
+
 /// Calculate the most up-to-date subsector and subsector coordinate of each tile
 fn tile_position(pos: Vector2<u32>) -> (Vector2<u32>, Vector2<u32>) {
     let containing_subsector = Vector2::new(meta_size(pos.x), meta_size(pos.y));
     let position_within_sector =
         Vector2::new(position_within_sector(pos.x), position_within_sector(pos.y));
     (containing_subsector, position_within_sector)
+}
+
+fn subsector_tile_position(pos: Vector2<u32>, subsector: Vector2<u32>) -> Vector2<u32> {
+    let subsector_offset = {
+        let off_x = match subsector.x % 2 {
+            0 => subsector.x / 2 * (LONG_LENGTH + SHORT_LENGTH),
+            1 => (subsector.x - 1) / 2 * (LONG_LENGTH + SHORT_LENGTH) + SHORT_LENGTH,
+            _ => 0,
+        };
+        let off_y = match subsector.y % 2 {
+            0 => subsector.y / 2 * (LONG_LENGTH + SHORT_LENGTH),
+            1 => (subsector.y - 1) / 2 * (LONG_LENGTH + SHORT_LENGTH) + SHORT_LENGTH,
+            _ => 0,
+        };
+        Vector2::new(off_x, off_y)
+    };
+    subsector_offset + pos
 }

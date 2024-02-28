@@ -233,4 +233,8 @@ impl Tile {
     pub fn atlas_position(&self) -> Vector2<u32> {
         return self.atlas_position;
     }
+
+    pub fn set_atlas_position(&mut self, position: Vector2<u32>) {
+        self.atlas_position = position;
+    }
 }

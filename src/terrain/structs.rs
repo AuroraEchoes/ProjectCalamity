@@ -51,21 +51,21 @@ impl StaticTileInfo {
 pub struct GenTile {
     // Contents
     static_tile: Option<StaticTileInfo>,
-    entropy: Option<u32>,
+    entropy: Entropy,
 }
 
 impl GenTile {
-    pub fn new(static_tile: StaticTileInfo, entropy: Option<u32>) -> Self {
+    pub fn new(static_tile: StaticTileInfo) -> Self {
         Self {
             static_tile: Some(static_tile),
-            entropy,
+            entropy: Entropy::default(),
         }
     }
 
     pub fn empty() -> Self {
         Self {
             static_tile: None,
-            entropy: None,
+            entropy: Entropy::Uncalulated,
         }
     }
 
@@ -77,24 +77,30 @@ impl GenTile {
         self.static_tile = Some(tile);
     }
 
-    pub fn entropy(&self) -> &Option<u32> {
-        &self.entropy
+    pub fn entropy(&self) -> Entropy {
+        self.entropy
     }
 
     pub fn set_entropy(&mut self, entropy: u32) {
-        self.entropy = Some(entropy);
+        self.entropy = Entropy::Calculated(entropy);
     }
 
     pub fn remove_entropy(&mut self) {
-        self.entropy = None;
+        self.entropy = Entropy::Set;
     }
 
     pub fn min_entropy<'a>(
         lhs: &'a GridItem<GenTile>,
         rhs: &'a GridItem<GenTile>,
     ) -> &'a GridItem<GenTile> {
-        let lhs_entropy = lhs.contents().entropy().unwrap_or(u32::MAX);
-        let rhs_entropy = rhs.contents().entropy().unwrap_or(u32::MAX);
+        let lhs_entropy = match lhs.contents().entropy {
+            Entropy::Calculated(e) => e,
+            _ => u32::MAX,
+        };
+        let rhs_entropy = match rhs.contents().entropy {
+            Entropy::Calculated(e) => e,
+            _ => u32::MAX,
+        };
         match lhs_entropy < rhs_entropy {
             true => lhs,
             false => rhs,
@@ -106,7 +112,7 @@ impl GenTile {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Subsector {
     // Execution stage
     stage: GenerationStage,
@@ -141,4 +147,12 @@ pub enum GenerationStage {
     SecondaryHorizontal,
     SecondaryVertical,
     Tertiary,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum Entropy {
+    #[default]
+    Uncalulated,
+    Calculated(u32),
+    Set,
 }

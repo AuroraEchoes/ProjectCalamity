@@ -1,4 +1,5 @@
 use cgmath::Vector2;
+use log::info;
 use rand::seq::SliceRandom;
 
 use crate::juno::{
@@ -6,7 +7,7 @@ use crate::juno::{
     grid::{Grid, GridItem},
 };
 
-use super::structs::{GenTile, GenerationStage, StaticTileInfo, Subsector};
+use super::structs::{Entropy, GenTile, GenerationStage, StaticTileInfo, Subsector};
 
 pub fn generate_primary_sectors(meta_grid: &mut Grid<Subsector>, static_tiles: &[StaticTileInfo]) {
     let primary_sectors = meta_grid.tiles_mut().filter(|t| {
@@ -20,7 +21,7 @@ pub fn generate_primary_sectors(meta_grid: &mut Grid<Subsector>, static_tiles: &
         let subsector = subsector.contents_mut();
         subsector.grid_mut().fill(GenTile::empty());
         let initial_tile = static_tiles.choose(&mut rand::thread_rng()).unwrap();
-        let grid_item = GridItem::new(Vector2::new(0, 0), GenTile::new(initial_tile.clone(), None));
+        let grid_item = GridItem::new(Vector2::new(0, 0), GenTile::new(initial_tile.clone()));
         if let Some(t) = subsector.grid_mut().tile_mut(Vector2::new(0, 0)) {
             *t = grid_item
         }
@@ -42,10 +43,11 @@ pub fn generate_secondary_sectors(
         let subsector = subsector.contents_mut();
         subsector.grid_mut().fill(GenTile::empty());
         let initial_tile = static_tiles.choose(&mut rand::thread_rng()).unwrap();
-        let grid_item = GridItem::new(Vector2::new(0, 0), GenTile::new(initial_tile.clone(), None));
+        let grid_item = GridItem::new(Vector2::new(0, 0), GenTile::new(initial_tile.clone()));
         if let Some(t) = subsector.grid_mut().tile_mut(Vector2::new(0, 0)) {
-            *t = grid_item
+            *t = grid_item;
         }
+        calculate_entropy(subsector.grid_mut(), Vector2::new(0, 0), static_tiles);
         generate_subsector(subsector, static_tiles)
     }
 }
@@ -62,7 +64,7 @@ pub fn generate_tertiary_sectors(meta_grid: &mut Grid<Subsector>, static_tiles: 
         let subsector = subsector.contents_mut();
         subsector.grid_mut().fill(GenTile::empty());
         let initial_tile = static_tiles.choose(&mut rand::thread_rng()).unwrap();
-        let grid_item = GridItem::new(Vector2::new(0, 0), GenTile::new(initial_tile.clone(), None));
+        let grid_item = GridItem::new(Vector2::new(0, 0), GenTile::new(initial_tile.clone()));
         if let Some(t) = subsector.grid_mut().tile_mut(Vector2::new(0, 0)) {
             *t = grid_item
         }
@@ -70,14 +72,43 @@ pub fn generate_tertiary_sectors(meta_grid: &mut Grid<Subsector>, static_tiles: 
     }
 }
 
-fn generate_subsector(subsector: &mut Subsector, static_tiles: &[StaticTileInfo]) {
-    while let Some(sel_tile) = min_entropy(&subsector.grid().clone()) {
-        select_tile(subsector.grid_mut(), sel_tile, static_tiles);
-        calculate_entropy(subsector.grid_mut(), sel_tile, static_tiles);
+pub fn generate_subsector(subsector: &mut Subsector, static_tiles: &[StaticTileInfo]) {
+    while count_empty_tiles(&subsector) > 0 {
+        if let Some(sel_tile) = min_entropy(&subsector.grid().clone()) {
+            select_tile(subsector.grid_mut(), sel_tile, static_tiles);
+            calculate_entropy(subsector.grid_mut(), sel_tile, static_tiles);
+        }
+        // We need to pick a new untouched tile and set it's entropy
+        else {
+            calculate_entropy_for_empty_tile(subsector.grid_mut(), static_tiles);
+        }
     }
 }
 
-fn select_tile(grid: &mut Grid<GenTile>, pos: Vector2<u32>, static_tiles: &[StaticTileInfo]) {
+fn count_empty_tiles(subsector: &Subsector) -> u32 {
+    subsector
+        .grid()
+        .tiles()
+        .filter(|t| t.contents().static_tile().is_none())
+        .count() as u32
+}
+
+fn calculate_entropy_for_empty_tile(
+    subsector: &mut Grid<GenTile>,
+    static_tiles: &[StaticTileInfo],
+) {
+    let empty_tile_opt = subsector
+        .tiles()
+        .filter(|t| t.contents().entropy().eq(&Entropy::Uncalulated))
+        .nth(0)
+        .cloned();
+    if let Some(empty_tile) = empty_tile_opt {
+        select_tile(subsector, empty_tile.pos(), static_tiles);
+        calculate_entropy(subsector, empty_tile.pos(), static_tiles);
+    }
+}
+
+pub fn select_tile(grid: &mut Grid<GenTile>, pos: Vector2<u32>, static_tiles: &[StaticTileInfo]) {
     // Find possible adjacent tiles
     // 1. Filter static tiles with regard to edges
     // 2. `choose_tile()` from the filtered list
@@ -157,15 +188,21 @@ fn calculate_entropy(grid: &mut Grid<GenTile>, pos: Vector2<u32>, static_tiles: 
 }
 
 fn min_entropy(grid: &Grid<GenTile>) -> Option<Vector2<u32>> {
-    let mut min_entropy = None::<&GridItem<GenTile>>;
+    let mut min_entropy_tile = None::<&GridItem<GenTile>>;
+    let mut min_entropy_value = u32::MAX;
     for t in grid.tiles() {
-        let prev = min_entropy.map_or(u32::MAX, |t| t.contents().entropy().unwrap_or(u32::MAX));
-        let curr = t.contents().entropy().unwrap_or(u32::MAX);
-        if curr < prev {
-            min_entropy = Some(t);
-        }
+        match t.contents().entropy() {
+            Entropy::Uncalulated => {}
+            Entropy::Calculated(e) => {
+                if e < min_entropy_value {
+                    min_entropy_value = e;
+                    min_entropy_tile = Some(t);
+                }
+            }
+            Entropy::Set => {}
+        };
     }
-    match min_entropy {
+    match min_entropy_tile {
         Some(item) => Some(item.pos()),
         None => None,
     }

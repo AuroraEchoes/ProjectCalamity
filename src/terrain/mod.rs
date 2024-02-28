@@ -6,12 +6,14 @@ use crate::sector::Sector;
 use self::{
     generate::{generate_primary_sectors, generate_secondary_sectors, generate_tertiary_sectors},
     structs::StaticTileInfo,
-    subsector::{stitch_subsectors, subsectors},
+    subsector::{neo_stitch_subsectors, subsectors},
 };
 
 pub mod generate;
 pub mod structs;
 pub mod subsector;
+#[cfg(test)]
+pub mod tests;
 
 // Parameters
 // TODO: Maybe make this into a struct?
@@ -35,14 +37,14 @@ pub fn generate_terrain(size: Vector2<u32>, name: String) -> Sector {
     //    tiles from tertiary sectors
     // 4. Fill each secondary sector randomly using wave function collapse —  each subsector on a
     //    seperate thread
-    generate_secondary_sectors(&mut meta_grid, static_tiles);
+    // generate_secondary_sectors(&mut meta_grid, static_tiles);
     // 5. ...(tertiary sectors)
-    generate_tertiary_sectors(&mut meta_grid, static_tiles);
+    // generate_tertiary_sectors(&mut meta_grid, static_tiles);
     info!("Generated all sectors");
     // 6. Combine all of the disperate subsectors, resolving overlapping tiles and prioritising
     //    later sectors for overlaps (figure out which subsector should "own" the tile, I.E. the
     //    latest subsector which will contain this tile)
-    stitch_subsectors(meta_grid, name, size)
+    neo_stitch_subsectors(meta_grid, name, size)
 }
 
 // HACK: This is temporary, until I write a proper asset loading system
